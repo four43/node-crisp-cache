@@ -1,0 +1,39 @@
+{
+  "name": "crisp-cache",
+  "version": "0.0.1",
+  "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha",
+    "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec ./test/*",
+    "coveralls": "npm run coverage && coveralls < coverage/lcov.info"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/four43/node-crisp-cache.git"
+  },
+  "keywords": [
+    "cache",
+    "ttl",
+    "fresh",
+    "stale",
+    "expires",
+    "expired"
+  ],
+  "author": "Seth Miller <seth@four43.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/four43/node-crisp-cache/issues"
+  },
+  "homepage": "https://github.com/four43/node-crisp-cache#readme",
+  "dependencies": {
+    "async": "^1.4.2",
+    "fs-extra": "^0.23.1"
+  },
+  "devDependencies": {
+    "coveralls": "^2.11.2",
+    "istanbul": "^0.3.18",
+    "mocha": "^2.1.0",
+    "mocha-lcov-reporter": "0.0.2"
+  }
+}
