@@ -28,12 +28,13 @@
   "homepage": "https://github.com/four43/node-crisp-cache#readme",
   "dependencies": {
     "async": "^1.4.2",
-    "fs-extra": "^0.23.1"
+    "debug": "^2.2.0"
   },
   "devDependencies": {
     "coveralls": "^2.11.2",
     "istanbul": "^0.3.18",
     "mocha": "^2.1.0",
-    "mocha-lcov-reporter": "0.0.2"
+    "mocha-lcov-reporter": "0.0.2",
+    "sinon": "^1.16.1"
   }
 }
