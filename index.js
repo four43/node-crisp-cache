@@ -70,11 +70,11 @@ CrispCache.prototype.get = function (key, options, callback) {
         else if (cacheEntry.isStale()) {
             //Stale, try and update the cache but return what we have.
             debug("- Stale, returning current value but re-fetching");
+            callback(null, cacheEntry.getValue());
             this._fetch(key, {
                 staleTtl: cacheEntry.staleTtl,
                 expiresTtl: cacheEntry.expiresTtl
             });
-            callback(null, cacheEntry.getValue());
         }
         else if (cacheEntry.isExpired()) {
             debug("- Expired");
@@ -102,7 +102,7 @@ CrispCache.prototype.get = function (key, options, callback) {
  *
  * Sets a value to a key.
  * @param {string} key
- * @param {any} value
+ * @param value
  * @param {{staleTtl:Number, expiresTtl:Number}}options
  * @param {valueCb} [callback]
  */
@@ -174,7 +174,7 @@ CrispCache.prototype._fetch = function (key, options, callback) {
     }
     if (this.locks[key]) {
         //We are locked (already fetching) currently.
-        return this.locks.push(callback);
+        return this.locks[key].push(callback);
     }
     //Not locked, lock and fetch
     this._lock(key, callback);
@@ -243,23 +243,24 @@ CrispCache.prototype._lock = function (key, callbackToAdd) {
  *
  * Resolves all the locks for a given key with the supplied value.
  * @param {string}key
- * @param {any} value
+ * @param value
  * @private
  */
 CrispCache.prototype._resolveLocks = function (key, value) {
     if (this.locks[key]) {
         //Clear out anyone waiting on this key.
-        this.locks[key].map(function (lockCb) {
+        var locks = this.locks[key];
+        delete this.locks[key];
+        locks.map(function (lockCb) {
             return lockCb(null, value);
         });
-        delete this.locks[key];
     }
 };
 
 /**
  * @callback valueCb
  * @param {Error|null} error
- * @param {any} [value] - Any result value, could be undefined if there is an error.
+ * @param [value] - Any result value, could be undefined if there is an error.
  */
 
 /**
