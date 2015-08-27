@@ -6,7 +6,7 @@ var CacheEntry = require('./lib/CacheEntry'),
  * @constructor
  */
 function CrispCache(options) {
-    if(options === undefined) {
+    if (options === undefined) {
         options = {};
     }
     this.defaultStaleTtl = options.defaultStaleTtl;
@@ -15,7 +15,7 @@ function CrispCache(options) {
     this.defaultExpiresTtl = options.defaultExpiresTtl;
     this.evictCheckInterval = options.evictCheckInterval || 0;
 
-    if(!options.fetcher) {
+    if (!options.fetcher) {
         throw new Error("Must pass a fetcher option, a fetcher is a function(key, callback) that can retrieve a key from a repository");
     }
     this.fetcher = options.fetcher;
@@ -87,11 +87,15 @@ CrispCache.prototype.get = function (key, options, callback) {
             else {
                 //Fetch this key
                 debug(" - Fetching, will callback when we have it");
-                this._fetch(key, {
-                    staleTtl: cacheEntry.staleTtl,
-                    expiresTtl: cacheEntry.expiresTtl
-                }, callback);
-                this.del(key);
+                this.del(key, function(err, success) {
+                    if(err) {
+                        throw new Error("Couldn't remove an expired key: " + key);
+                    }
+                    this._fetch(key, {
+                        staleTtl: cacheEntry.staleTtl,
+                        expiresTtl: cacheEntry.expiresTtl
+                    }, callback);
+                }.bind(this));
             }
         }
     }
@@ -180,9 +184,11 @@ CrispCache.prototype._fetch = function (key, options, callback) {
     this._lock(key, callback);
 
     this.fetcher(key, function (err, value) {
-        if(err) {
+        if (err) {
+            debug("Issue with fetcher, resolving in error");
             this._resolveLocks(key, undefined, err);
         }
+        debug("Got value: " + value + " from fetcher for key: " + key);
         this.set(key, value, options);
     }.bind(this));
 };
@@ -255,7 +261,7 @@ CrispCache.prototype._resolveLocks = function (key, value, err) {
         var locks = this.locks[key];
         delete this.locks[key];
         locks.map(function (lockCb) {
-            if(err) {
+            if (err) {
                 return lockCb(err);
             }
             return lockCb(null, value);
