@@ -39,6 +39,7 @@ describe("Get - Basic", function () {
 
     it("Should fetch a key", function (done) {
         crispCacheBasic.get('hello', function (err, value) {
+            assert.equal(null, err);
             assert.equal(value, 'world');
             done();
         });
@@ -46,14 +47,16 @@ describe("Get - Basic", function () {
 
     it("Should not fetch a missing key", function (done) {
         crispCacheBasic.get('hello', {skipFetch: true}, function (err, value) {
+            assert.equal(null, err);
             assert.equal(value, undefined);
-            assert.equal(0, fetcherSpy.callCount);
+            assert.equal(fetcherSpy.callCount, 0);
             done();
         });
     });
 
     it("Should fetch a key from cache", function (done) {
         crispCacheBasic.get('hello', function (err, value) {
+            assert.equal(null, err);
             assert.equal(value, 'world');
             crispCacheBasic.get('hello', function (err, value) {
                 assert.equal(value, 'world');
@@ -65,11 +68,13 @@ describe("Get - Basic", function () {
 
     it("Should fetch a stale key", function(done) {
         crispCacheBasic.get('hello', function (err, value) {
+            assert.equal(null, err);
             assert.equal(value, 'world');
             clock.tick(301);
             crispCacheBasic.get('hello', function (err, value) {
+                assert.equal(null, err);
                 assert.equal(value, 'world');
-                assert.equal(1, fetcherSpy.callCount);
+                assert.equal(fetcherSpy.callCount, 1);
                 done();
             });
         });
@@ -77,11 +82,13 @@ describe("Get - Basic", function () {
 
     it("Should re-fetch an expired key", function(done) {
         crispCacheBasic.get('hello', function (err, value) {
+            assert.equal(null, err);
             assert.equal(value, 'world');
             clock.tick(1000);
             crispCacheBasic.get('hello', function (err, value) {
+                assert.equal(null, err);
                 assert.equal(value, 'world');
-                assert.equal(2, fetcherSpy.callCount);
+                assert.equal(fetcherSpy.callCount, 2);
                 done();
             });
         });
@@ -89,11 +96,13 @@ describe("Get - Basic", function () {
 
     it("Should not re-fetch an expired key", function(done) {
         crispCacheBasic.get('hello', function (err, value) {
+            assert.equal(null, err);
             assert.equal(value, 'world');
             clock.tick(1000);
             crispCacheBasic.get('hello', {skipFetch: true}, function (err, value) {
+                assert.equal(null, err);
                 assert.equal(value, undefined);
-                assert.equal(1, fetcherSpy.callCount);
+                assert.equal(fetcherSpy.callCount, 1);
                 done();
             });
         });
@@ -102,9 +111,13 @@ describe("Get - Basic", function () {
 });
 
 describe("Set - Basic", function () {
-    fetcherSpy = sinon.spy(fetcher);
-    crispCacheBasic = new CrispCache({
-        fetcher: fetcherSpy
+    beforeEach(function () {
+        fetcherSpy = sinon.spy(fetcher);
+        crispCacheBasic = new CrispCache({
+            fetcher: fetcherSpy,
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500
+        })
     });
 
     it("Should set a key to the cache", function (done) {
@@ -115,4 +128,31 @@ describe("Set - Basic", function () {
             });
         })
     })
+});
+
+describe("Del - Basic", function () {
+    beforeEach(function () {
+        fetcherSpy = sinon.spy(fetcher);
+        crispCacheBasic = new CrispCache({
+            fetcher: fetcherSpy,
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500
+        })
+    });
+
+   it("Should delete a key", function(done) {
+       crispCacheBasic.get('hello', function (err, value) {
+           assert.equal(null, err);
+           assert.equal(value, 'world');
+           crispCacheBasic.del('hello', function(err, value) {
+               assert.equal(null, err);
+               assert.equal(true, value);
+               crispCacheBasic.get('hello', {skipFetch: true}, function (err, value) {
+                   assert.equal(value, undefined);
+                   assert.equal(fetcherSpy.callCount, 1);
+                   done();
+               });
+           });
+       });
+   });
 });
