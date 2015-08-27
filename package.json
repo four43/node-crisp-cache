@@ -27,7 +27,6 @@
   },
   "homepage": "https://github.com/four43/node-crisp-cache#readme",
   "dependencies": {
-    "async": "^1.4.2",
     "debug": "^2.2.0"
   },
   "devDependencies": {
