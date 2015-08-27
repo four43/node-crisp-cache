@@ -180,6 +180,9 @@ CrispCache.prototype._fetch = function (key, options, callback) {
     this._lock(key, callback);
 
     this.fetcher(key, function (err, value) {
+        if(err) {
+            this._resolveLocks(key, undefined, err);
+        }
         this.set(key, value, options);
     }.bind(this));
 };
@@ -246,12 +249,15 @@ CrispCache.prototype._lock = function (key, callbackToAdd) {
  * @param value
  * @private
  */
-CrispCache.prototype._resolveLocks = function (key, value) {
+CrispCache.prototype._resolveLocks = function (key, value, err) {
     if (this.locks[key]) {
         //Clear out anyone waiting on this key.
         var locks = this.locks[key];
         delete this.locks[key];
         locks.map(function (lockCb) {
+            if(err) {
+                return lockCb(err);
+            }
             return lockCb(null, value);
         });
     }
