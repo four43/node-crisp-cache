@@ -63,3 +63,26 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 | `staleCheckInterval` | (integer, ms) | `0` | If >0, how often to check for stale keys and re-fetch |
 | `defaultExpiresTtl` | (integer, ms) | `0` | If >0, cache entries that are older than this time will be deleted |
 | `evictCheckInterval` | (integer, ms) | `0` | If >0, will check for expired cache entries and delete them from the cache |
+
+### get(key, [options], callback)
+This will try and get `key` (a string) from the cache. By default if the key doesn't exist, the cache will call the configured `fetcher` to get the value. A lock is also set on the key while the value is retrieved. When the value is retrieved it is saved in the cache and used to call callback. Other requests to get this key from the cache are also resolved.
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `skipFetch` | (boolean) | `false` | If true, will not try and fetch value if it doesn't exist in the cache. |
+| `forceFetch` | (boolean) | `false` | If true, will always refetch from the configured `fetcher` and not use the cache. |
+
+### set(key, value, [options], callback)
+Set a value to the cache. Will call `callback` (an error first callback) with a true/false for success when done.
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `staleTtl` | (integer, ms) | `crispCache.defaultStaleTtl` | How long the cache entry is valid before becoming stale. |
+| `expiresTtl` | (integer, ms) | `crispCache.defaultExpiresTtl` | If >0, cache entries that are older than this time will be deleted |
+
+
+### del(key, [callback])
+Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
+
+## Roadmap
+
+* Add different caching backends (memory is the only one supported now)
