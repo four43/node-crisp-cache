@@ -46,7 +46,7 @@ CrispCache.prototype.get = function (key, options, callback) {
         options = {};
     }
 
-    if (this.cache[key] === undefined) {
+    if (this.cache[key] === undefined || options.forceFetch) {
         //Cache miss.
         debug("- MISS");
         if (options.skipFetch) {
@@ -115,9 +115,10 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         options = {};
     }
 
-    var staleTtl,
-        expiresTtl;
-    if (options.staleTtl === undefined) {
+    var staleTtl = options.staleTtl,
+        expiresTtl = options.expiresTtl;
+
+    if (staleTtl === undefined) {
         staleTtl = this.defaultStaleTtl;
     }
     if (expiresTtl === undefined) {

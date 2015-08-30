@@ -141,6 +141,19 @@ describe("Get - Advanced", function () {
         })
     });
 
+    it("Should fetch a key", function (done) {
+        crispCacheBasic.get('hello', function (err, value) {
+            assert.equal(err, null);
+            assert.equal(value, 'world');
+            crispCacheBasic.get('hello', {forceFetch: true }, function (err, value) {
+                assert.equal(fetcherSpy.callCount, 2);
+                assert.equal(err, null);
+                assert.equal(value, 'world');
+                done();
+            });
+        });
+    });
+
     it("Should only fetch once for 2 cache misses", function (done) {
         async.parallel([
                 function (callback) {
