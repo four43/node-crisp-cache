@@ -1,5 +1,6 @@
 # crisp-cache
-A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.
+A crispy fresh cache that will use updated data where it can, but can use a stale entry if need be - useful for high throughput
+applications that want to avoid cache-slams and blocking.
 
 Master Build Status: 
 [![Build Status](https://travis-ci.org/four43/node-crisp-cache.svg?branch=master)](https://travis-ci.org/four43/node-crisp-cache)

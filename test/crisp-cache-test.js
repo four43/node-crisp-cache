@@ -11,7 +11,7 @@ var data = {
 };
 function fetcher(key, callback) {
     setTimeout(function () {
-       return callback(null, data[key]);
+        return callback(null, data[key]);
     }, 1);
 }
 function fetcherBad(key, callback) {
@@ -45,7 +45,7 @@ describe("Get - Basic", function () {
     });
 
     afterEach(function () {
-        if(clock) {
+        if (clock) {
             clock.restore();
         }
     });
@@ -205,12 +205,68 @@ describe("Del - Basic", function () {
             function (value, callback) {
                 assert.equal(true, value);
                 crispCacheBasic.get('hello', {skipFetch: true}, callback);
-            },
-            function (value, callback) {
-                assert.equal(value, undefined);
-                assert.equal(fetcherSpy.callCount, 1);
-                done();
             }
-        ]);
+        ], function (err, value) {
+            assert.equal(err, null);
+            assert.equal(value, undefined);
+            assert.equal(fetcherSpy.callCount, 1);
+            done();
+        });
     });
+});
+
+var staleCheckSpy;
+describe("StaleCheck - Auto refresh cache", function () {
+    beforeEach(function () {
+        clock = sinon.useFakeTimers();
+
+        fetcherSpy = sinon.spy(fetcher);
+        if(!CrispCache.prototype._staleCheck_orig) {
+            CrispCache.prototype._staleCheck_orig = CrispCache.prototype._staleCheck;
+        }
+        staleCheckSpy = sinon.spy(CrispCache.prototype._staleCheck_orig);
+        CrispCache.prototype._staleCheck = staleCheckSpy;
+        crispCacheBasic = new CrispCache({
+            fetcher: fetcherSpy,
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500,
+            staleCheckInterval: 100
+        });
+    });
+
+    afterEach(function () {
+        if (clock) {
+            clock.restore();
+        }
+    });
+
+    it("Should update the cache without asking", function (done) {
+        async.waterfall([
+                function (callback) {
+                    crispCacheBasic.get('hello', callback);
+                    clock.tick(10);
+                },
+                function (value, callback) {
+                    assert.equal(value, 'world');
+                    clock.tick(401);
+                    callback();
+                },
+                function(callback) {
+                    assert.equal(staleCheckSpy.callCount, 4);
+                    clock.tick(10);
+                    assert.equal(fetcherSpy.callCount, 2);
+                    crispCacheBasic.get('hello', callback);
+                    clock.tick(10);
+                }
+            ],
+            function (err, value) {
+                assert.equal(err, null);
+                assert.equal(value, 'world');
+                done();
+            });
+    });
+});
+
+describe("ExpiresCheck - Auto clean cache", function () {
+
 });

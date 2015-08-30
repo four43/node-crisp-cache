@@ -201,10 +201,12 @@ CrispCache.prototype._fetch = function (key, options, callback) {
  */
 CrispCache.prototype._staleCheck = function () {
     //This is a little gross for efficiency, this.cache will just have basic keys on it, no need to double check.
+    debug("Checking for stale cache entries...");
     var cacheEntry;
     for (var key in this.cache) {
         cacheEntry = this.cache[key];
         if (cacheEntry.isStale()) {
+            debug("- " + key + " was found to be stale, re-fetching");
             this._fetch(key, {
                 staleTtl: cacheEntry.staleTtl,
                 expiresTtl: cacheEntry.expiresTtl
