@@ -238,9 +238,12 @@ describe("StaleCheck - Auto refresh cache", function () {
         if (clock) {
             clock.restore();
         }
+        if(CrispCache.prototype._staleCheck_orig) {
+            CrispCache.prototype._staleCheck = CrispCache.prototype._staleCheck_orig;
+        }
     });
 
-    it("Should update the cache without asking", function (done) {
+    it("Should update the cache without get", function (done) {
         async.waterfall([
                 function (callback) {
                     crispCacheBasic.get('hello', callback);
@@ -267,6 +270,51 @@ describe("StaleCheck - Auto refresh cache", function () {
     });
 });
 
+var delSpy;
 describe("ExpiresCheck - Auto clean cache", function () {
+    beforeEach(function () {
+        clock = sinon.useFakeTimers();
+        if(!CrispCache.prototype._del_orig) {
+            CrispCache.prototype._del_orig = CrispCache.prototype.del;
+        }
+        delSpy = sinon.spy(CrispCache.prototype._del_orig);
+        CrispCache.prototype.del = delSpy;
+        crispCacheBasic = new CrispCache({
+            fetcher: fetcher,
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500,
+            evictCheckInterval: 100
+        });
+    });
 
+    afterEach(function () {
+        if (clock) {
+            clock.restore();
+        }
+    });
+
+    it("Should expire the cache without asking", function (done) {
+        async.waterfall([
+                function (callback) {
+                    crispCacheBasic.get('hello', callback);
+                    clock.tick(10);
+                },
+                function (value, callback) {
+                    assert.equal(value, 'world');
+                    clock.tick(600);
+                    callback();
+                },
+                function(callback) {
+                    assert.equal(delSpy.callCount, 1);
+                    assert.equal(Object.keys(crispCacheBasic.cache).length, 0);
+                    clock.tick(10);
+                    crispCacheBasic.get('hello', {skipFetch: true}, callback);
+                }
+            ],
+            function (err, value) {
+                assert.equal(err, null);
+                assert.equal(value, undefined);
+                done();
+            });
+    });
 });

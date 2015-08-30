@@ -88,9 +88,6 @@ CrispCache.prototype.get = function (key, options, callback) {
                 //Fetch this key
                 debug(" - Fetching, will callback when we have it");
                 this.del(key, function(err, success) {
-                    if(err) {
-                        throw new Error("Couldn't remove an expired key: " + key);
-                    }
                     this._fetch(key, {
                         staleTtl: cacheEntry.staleTtl,
                         expiresTtl: cacheEntry.expiresTtl
