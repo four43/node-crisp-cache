@@ -74,6 +74,7 @@ This will try and get `key` (a string) from the cache. By default if the key doe
 
 ### set(key, value, [options], callback)
 Set a value to the cache. Will call `callback` (an error first callback) with a true/false for success when done.
+
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
 | `staleTtl` | (integer, ms) | `crispCache.defaultStaleTtl` | How long the cache entry is valid before becoming stale. |
