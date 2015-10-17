@@ -186,10 +186,28 @@ describe("Get - Advanced", function () {
 });
 
 describe("Set - Basic", function () {
+    beforeEach(function () {
+        crispCacheBasic = new CrispCache({
+            fetcher: function(key, callback) { callback(null, 'fetcher value') },
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500
+        })
+    });
+
     it("Should set a key to the cache", function (done) {
         crispCacheBasic.set("testA", "The Value", function (err, success) {
             crispCacheBasic.get('testA', function (err, value) {
                 assert.equal(value, 'The Value');
+                done();
+            });
+        })
+    });
+
+    it("Should skip cache with TTL of 0", function (done) {
+        crispCacheBasic.set("testExpires", "The Value", { expiresTtl: 0 }, function (err, success) {
+            assert.equal(crispCacheBasic.cache['testA'], undefined);
+            crispCacheBasic.get('testA', function (err, value) {
+                assert.equal(value, 'fetcher value');
                 done();
             });
         })
