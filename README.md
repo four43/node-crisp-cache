@@ -21,7 +21,7 @@ var data = {
     hash: {key: "value", nested: [4, 5, 6]}
 };
 function fetcher(key, callback) {
-  return data[key];
+    return callback(null, data[key]);
 }
 
 crispCacheBasic = new CrispCache({
@@ -30,24 +30,24 @@ crispCacheBasic = new CrispCache({
     defaultExpiresTtl: 500,
     staleCheckInterval: 100
 });
-crispCacheBasic.set('new', 'A new value, not from fetcher', function(err, success) {
-  if(success) {
-    console.log("Set 'new' to our provided string.");
-  }
+crispCacheBasic.set('new', 'A new value, not from fetcher', function (err, success) {
+    if (success) {
+        console.log("Set 'new' to our provided string.");
+    }
 });
 
-crispCacheBasic.get('foo', function(err, value) {
-  if(!err) {
-    console.log("Got 'foo', is: " + value);
-  }
+crispCacheBasic.get('foo', function (err, value) {
+    if (!err) {
+        console.log("Got 'foo', is: " + value);
+    }
 });
 //Wait any amount of time
 
-crispCacheBasic.get('foo', {skipFetch: true}, function(err, value) {
-  //We wont have to re-fetch when we call `get`, since it is keeping it up to date for us.
-  if(!err) {
-    console.log("Got 'foo', is: " + value);
-  }
+crispCacheBasic.get('foo', {skipFetch: true}, function (err, value) {
+    //We wont have to re-fetch when we call `get`, since it is keeping it up to date for us.
+    if (!err) {
+        console.log("Got 'foo', is: " + value);
+    }
 });
 ```
 
@@ -58,7 +58,7 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `fetcher` | (callable)* | null | A method to call when we need to update a cache entry, should have signature: function(key, callback(err, value)) |
+| `fetcher` | (callable)* | null | A method to call when we need to update a cache entry, should have signature: function(key, callback(err, value, options)) |
 | `defaultStaleTtl` | (integer, ms) | `300000` | How long the cache entry is valid before becoming stale. |
 | `staleCheckInterval` | (integer, ms) | `0` | If >0, how often to check for stale keys and re-fetch |
 | `defaultExpiresTtl` | (integer, ms) | `0` | If >0, cache entries that are older than this time will be deleted |
@@ -83,6 +83,87 @@ Set a value to the cache. Will call `callback` (an error first callback) with a 
 
 ### del(key, [callback])
 Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
+
+## Advanced Usage
+
+### Dynamic TTLs 
+TTLs can be set on a per-item basis in the fetch() callable provided to Crisp Cache.
+
+Lets say we want to create a for data we know expires every minute (60,000 ms). Our data source will provide how long 
+ago each record was created. We can dynamically set our TTL so we are never serving bad data.
+
+```javascript
+var CrispCache = require('crisp-cache');
+
+var MAX_AGE = 60000;
+var data = {
+    a: {
+        name: "Aaron",
+        createdAgo: 12000
+    },
+    b: {
+        name: "Betsy",
+        createdAgo: 24000
+    },
+    c: {
+        name: "Charlie",
+        createdAgo: 35000
+    }
+};
+function fetcher(key, callback) {
+    var record = data[key];
+    if (record) {
+        var timeLeft = MAX_AGE - record;
+        return callback(null, record, {expiresTtl: timeLeft});
+    }
+    else {
+        return callback(new Error("Record with key: " + key + " wasn't found"));
+    }
+}
+
+crispCacheBasic = new CrispCache({
+    fetcher: fetcher
+});
+
+crispCacheBasic.get('a', function (err, value) {
+    //CrispCache will keep "a" in the cache for 48 seconds (60 - 12)
+});
+```
+
+#### What about stale times?
+The previous example is great, but can we be smarter about how we fetch data? 
+
+If we want a high throughput application, we can ensure users of the cache are getting fast results by using a stale 
+ttl in accordance with expires. 
+
+```javascript
+[Same MAX_TIME and data from above example]
+
+function fetcher(key, callback) {
+    var record = data[key];
+    if (record) {
+        var staleTime = MAX_AGE - record;
+        var expiresTime = staleTime + 10000
+        return callback(null, record, { staleTtl: staleTime, expiresTtl: expiresTime });
+    }
+    else {
+        return callback(new Error("Record with key: " + key + " wasn't found"));
+    }
+}
+
+crispCacheBasic = new CrispCache({
+    fetcher: fetcher,
+    staleCheckInterval: 5000 //Check for stale records every 5 seconds
+});
+
+crispCacheBasic.get('a', function (err, value) {
+    // CrispCache will keep "a" in the cache for 58 seconds max (60 - 12 + our 10 second buffer)
+    // NOTE: CrispCache will automatically look for stale records and try to update them in the background.
+    // Users will get near immediate response times when looking key 'a', users looking for 'a' around 48 seconds after
+    //    it was cached may still see the original value for 'a', but CrispCache is in the background asking for an 
+    //    update to the stale data. When new data is available, users requesting 'a' will get the new record instead.
+});
+```
 
 ## Roadmap
 
