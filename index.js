@@ -125,11 +125,13 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         expiresTtl = this.defaultExpiresTtl;
     }
 
-    this.cache[key] = new CacheEntry({
-        value: value,
-        staleTtl: staleTtl,
-        expiresTtl: expiresTtl
-    });
+    if(expiresTtl !== 0) {
+        this.cache[key] = new CacheEntry({
+            value: value,
+            staleTtl: staleTtl,
+            expiresTtl: expiresTtl
+        });
+    }
     this._resolveLocks(key, value);
     if (callback) {
         callback(null, true);
