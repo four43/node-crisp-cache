@@ -10,9 +10,11 @@ function CrispCache(options) {
         options = {};
     }
     this.defaultStaleTtl = options.defaultStaleTtl;
+    this.staleTtlVariance = options.staleTtlVariance || options.ttlVariance || 0;
     this.staleCheckInterval = options.staleCheckInterval;
 
     this.defaultExpiresTtl = options.defaultExpiresTtl;
+    this.expiresTtlVariance = options.expiresTtlVariance || options.ttlVariance || 0;
     this.evictCheckInterval = options.evictCheckInterval || 0;
 
     if (!options.fetcher) {
@@ -119,10 +121,10 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         expiresTtl = options.expiresTtl;
 
     if (staleTtl === undefined) {
-        staleTtl = this.defaultStaleTtl;
+        staleTtl = this._getDefaultStaleTtl();
     }
     if (expiresTtl === undefined) {
-        expiresTtl = this.defaultExpiresTtl;
+        expiresTtl = this._getDefaultExpiresTtl();
     }
 
     if(expiresTtl !== 0) {
@@ -281,6 +283,33 @@ CrispCache.prototype._resolveLocks = function (key, value, err) {
             }
             return lockCb(null, value);
         });
+    }
+};
+
+/**
+ * @returns {Number}
+ * @private
+ */
+CrispCache.prototype._getDefaultStaleTtl = function() {
+    if(this.staleTtlVariance) {
+        return Math.round(this.defaultStaleTtl + (Math.random() * this.staleTtlVariance) - (this.staleTtlVariance / 2));
+    }
+    else {
+        return this.defaultStaleTtl
+    }
+};
+
+/**
+ *
+ * @returns {Number}
+ * @private
+ */
+CrispCache.prototype._getDefaultExpiresTtl = function() {
+    if(this.expiresTtlVariance) {
+        return Math.round(this.defaultExpiresTtl + (Math.random() * this.expiresTtlVariance) - (this.expiresTtlVariance / 2));
+    }
+    else {
+        return this.defaultExpiresTtl
     }
 };
 

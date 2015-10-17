@@ -60,9 +60,12 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 | ------ | ---- | ------- | ----------- |
 | `fetcher` | (callable)* | null | A method to call when we need to update a cache entry, should have signature: function(key, callback(err, value, options)) |
 | `defaultStaleTtl` | (integer, ms) | `300000` | How long the cache entry is valid before becoming stale. |
+| `staleTtlVariance` | (integer, ms) | `0` | How many ms to vary the staleTtl (+/-, to prevent cache slams) |
 | `staleCheckInterval` | (integer, ms) | `0` | If >0, how often to check for stale keys and re-fetch |
 | `defaultExpiresTtl` | (integer, ms) | `0` | If >0, cache entries that are older than this time will be deleted |
+| `expiresTtlVariance` | (integer, ms) | `0` | How many ms to vary the expiresTtl (+/-, to prevent cache slams) |
 | `evictCheckInterval` | (integer, ms) | `0` | If >0, will check for expired cache entries and delete them from the cache |
+| `ttlVariance` | (integer, ms) | `0` | (Alias for other variance options) How many ms to vary the staleTtl and expiresTtl (+/-, to prevent cache slams) |
 
 ### get(key, [options], callback)
 This will try and get `key` (a string) from the cache. By default if the key doesn't exist, the cache will call the configured `fetcher` to get the value. A lock is also set on the key while the value is retrieved. When the value is retrieved it is saved in the cache and used to call callback. Other requests to get this key from the cache are also resolved.

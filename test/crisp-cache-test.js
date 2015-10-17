@@ -1,6 +1,7 @@
 var assert = require('assert'),
     async = require('async'),
     CrispCache = require('../index'),
+    seed = require('seed-random'),
     sinon = require('sinon');
 
 var data = {
@@ -141,11 +142,15 @@ describe("Get - Advanced", function () {
         })
     });
 
+    afterEach(function() {
+        seed.resetGlobal();
+    });
+
     it("Should fetch a key", function (done) {
         crispCacheBasic.get('hello', function (err, value) {
             assert.equal(err, null);
             assert.equal(value, 'world');
-            crispCacheBasic.get('hello', {forceFetch: true }, function (err, value) {
+            crispCacheBasic.get('hello', {forceFetch: true}, function (err, value) {
                 assert.equal(fetcherSpy.callCount, 2);
                 assert.equal(err, null);
                 assert.equal(value, 'world');
@@ -182,13 +187,82 @@ describe("Get - Advanced", function () {
             assert.equal(value, undefined);
             done();
         });
-    })
+    });
+
+    it("Should assign varying staleTTLs based on variance", function (done) {
+        seed('foo', {global: true});
+        crispCacheBasic = new CrispCache({
+            fetcher: function () {
+            },
+            defaultStaleTtl: 300,
+            staleTtlVariance: 50,
+            defaultExpiresTtl: 500
+        });
+
+        crispCacheBasic.set('a', 'hello', function (err, result) {
+            assert.ok(crispCacheBasic.cache['a'].staleTtl >= 250 && crispCacheBasic.cache['a'].staleTtl <= 350);
+            assert.equal(crispCacheBasic.cache['a'].expiresTtl, 500);
+            crispCacheBasic.set('b', 'world', function (err, result) {
+                assert.ok(crispCacheBasic.cache['b'].staleTtl >= 250 && crispCacheBasic.cache['b'].staleTtl <= 350);
+                assert.equal(crispCacheBasic.cache['b'].expiresTtl, 500);
+                assert.notEqual(crispCacheBasic.cache['a'].staleTtl, crispCacheBasic.cache['b'].staleTtl);
+                done();
+            });
+        });
+    });
+
+    it("Should assign varying expireTTLs based on variance", function (done) {
+        seed('foo', {global: true});
+        crispCacheBasic = new CrispCache({
+            fetcher: function () {
+            },
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500,
+            expiresTtlVariance: 100
+        });
+
+        crispCacheBasic.set('a', 'hello', function (err, result) {
+            assert.ok(crispCacheBasic.cache['a'].expiresTtl >= 400 && crispCacheBasic.cache['a'].expiresTtl <= 600);
+            assert.equal(crispCacheBasic.cache['a'].staleTtl, 300);
+            crispCacheBasic.set('b', 'world', function (err, result) {
+                assert.ok(crispCacheBasic.cache['b'].expiresTtl >= 400 && crispCacheBasic.cache['b'].expiresTtl <= 600);
+                assert.equal(crispCacheBasic.cache['b'].staleTtl, 300);
+                assert.notEqual(crispCacheBasic.cache['a'].expiresTtl, crispCacheBasic.cache['b'].expiresTtl);
+                done();
+            });
+        });
+    });
+
+    it("Should assign varying expireTTLs and staleTTLs based on variance", function (done) {
+        seed('foo', {global: true});
+        crispCacheBasic = new CrispCache({
+            fetcher: function () {
+            },
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500,
+            ttlVariance: 100
+        });
+
+        crispCacheBasic.set('a', 'hello', function (err, result) {
+            assert.ok(crispCacheBasic.cache['a'].staleTtl >= 200 && crispCacheBasic.cache['a'].staleTtl <= 400);
+            assert.ok(crispCacheBasic.cache['a'].expiresTtl >= 400 && crispCacheBasic.cache['a'].expiresTtl <= 600);
+            crispCacheBasic.set('b', 'world', function (err, result) {
+                assert.ok(crispCacheBasic.cache['b'].staleTtl >= 200 && crispCacheBasic.cache['b'].staleTtl <= 400);
+                assert.ok(crispCacheBasic.cache['a'].expiresTtl >= 400 && crispCacheBasic.cache['a'].expiresTtl <= 600);
+                assert.notEqual(crispCacheBasic.cache['a'].staleTtl, crispCacheBasic.cache['b'].staleTtl);
+                assert.notEqual(crispCacheBasic.cache['a'].expiresTtl, crispCacheBasic.cache['b'].expiresTtl);
+                done();
+            });
+        });
+    });
 });
 
 describe("Set - Basic", function () {
     beforeEach(function () {
         crispCacheBasic = new CrispCache({
-            fetcher: function(key, callback) { callback(null, 'fetcher value') },
+            fetcher: function (key, callback) {
+                callback(null, 'fetcher value')
+            },
             defaultStaleTtl: 300,
             defaultExpiresTtl: 500
         })
@@ -204,7 +278,7 @@ describe("Set - Basic", function () {
     });
 
     it("Should skip cache with TTL of 0", function (done) {
-        crispCacheBasic.set("testExpires", "The Value", { expiresTtl: 0 }, function (err, success) {
+        crispCacheBasic.set("testExpires", "The Value", {expiresTtl: 0}, function (err, success) {
             //This isn't great but the only way to really make sure it wasn't set to the cache at all.
             assert.equal(crispCacheBasic.cache['testA'], undefined);
             crispCacheBasic.get('testA', function (err, value) {
@@ -218,8 +292,8 @@ describe("Set - Basic", function () {
 describe("Set - Advanced", function () {
     beforeEach(function () {
         crispCacheBasic = new CrispCache({
-            fetcher: function(key, callback) {
-                callback(null, 'fetcher', { staleTtl: 123, expiresTtl: 456 })
+            fetcher: function (key, callback) {
+                callback(null, 'fetcher', {staleTtl: 123, expiresTtl: 456})
             },
             defaultStaleTtl: 300,
             defaultExpiresTtl: 500
@@ -245,7 +319,7 @@ describe("Set - Advanced", function () {
 
     it("Should set with different TTL for existing entry", function (done) {
         clock = sinon.useFakeTimers();
-        crispCacheBasic.set('testA', 'hello', { staleTtl: 200, expiresTtl: 300 }, function(err, value) {
+        crispCacheBasic.set('testA', 'hello', {staleTtl: 200, expiresTtl: 300}, function (err, value) {
             clock.tick(301);
             crispCacheBasic.get('testA', function (err, value) {
                 assert.equal(err, null);
@@ -296,7 +370,7 @@ describe("StaleCheck - Auto refresh cache", function () {
         clock = sinon.useFakeTimers();
 
         fetcherSpy = sinon.spy(fetcher);
-        if(!CrispCache.prototype._staleCheck_orig) {
+        if (!CrispCache.prototype._staleCheck_orig) {
             CrispCache.prototype._staleCheck_orig = CrispCache.prototype._staleCheck;
         }
         staleCheckSpy = sinon.spy(CrispCache.prototype._staleCheck_orig);
@@ -313,7 +387,7 @@ describe("StaleCheck - Auto refresh cache", function () {
         if (clock) {
             clock.restore();
         }
-        if(CrispCache.prototype._staleCheck_orig) {
+        if (CrispCache.prototype._staleCheck_orig) {
             CrispCache.prototype._staleCheck = CrispCache.prototype._staleCheck_orig;
         }
     });
@@ -329,7 +403,7 @@ describe("StaleCheck - Auto refresh cache", function () {
                     clock.tick(401);
                     callback();
                 },
-                function(callback) {
+                function (callback) {
                     assert.equal(staleCheckSpy.callCount, 4);
                     clock.tick(10);
                     assert.equal(fetcherSpy.callCount, 2);
@@ -349,7 +423,7 @@ var delSpy;
 describe("ExpiresCheck - Auto clean cache", function () {
     beforeEach(function () {
         clock = sinon.useFakeTimers();
-        if(!CrispCache.prototype._del_orig) {
+        if (!CrispCache.prototype._del_orig) {
             CrispCache.prototype._del_orig = CrispCache.prototype.del;
         }
         delSpy = sinon.spy(CrispCache.prototype._del_orig);
@@ -379,7 +453,7 @@ describe("ExpiresCheck - Auto clean cache", function () {
                     clock.tick(600);
                     callback();
                 },
-                function(callback) {
+                function (callback) {
                     assert.equal(delSpy.callCount, 1);
                     assert.equal(Object.keys(crispCacheBasic.cache).length, 0);
                     clock.tick(10);
