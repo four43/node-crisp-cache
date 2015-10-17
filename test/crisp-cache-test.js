@@ -208,7 +208,6 @@ describe("Get - Advanced", function () {
                 assert.notEqual(crispCacheBasic.cache['a'].staleTtl, crispCacheBasic.cache['b'].staleTtl);
                 done();
             });
-            done();
         });
     });
 
@@ -231,7 +230,6 @@ describe("Get - Advanced", function () {
                 assert.notEqual(crispCacheBasic.cache['a'].expiresTtl, crispCacheBasic.cache['b'].expiresTtl);
                 done();
             });
-            done();
         });
     });
 
@@ -255,7 +253,6 @@ describe("Get - Advanced", function () {
                 assert.notEqual(crispCacheBasic.cache['a'].expiresTtl, crispCacheBasic.cache['b'].expiresTtl);
                 done();
             });
-            done();
         });
     });
 });
