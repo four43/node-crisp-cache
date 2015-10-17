@@ -157,7 +157,8 @@ CrispCache.prototype.del = function (key, callback) {
 /**
  * Fetch
  *
- * Fetches a key from the data provider
+ * Fetches a key from the data provider, the via the provided fetch callable when this object was created.
+ *
  * @param {string} key
  * @param {{}|function} options - An options object or a callback
  * @param {valueCb} [callback] - If options, an error first callback
@@ -183,12 +184,24 @@ CrispCache.prototype._fetch = function (key, options, callback) {
     //Not locked, lock and fetch
     this._lock(key, callback);
 
-    this.fetcher(key, function (err, value) {
+    this.fetcher(key, function (err, value, fetcherOptions) {
         if (err) {
             debug("Issue with fetcher, resolving in error");
             this._resolveLocks(key, undefined, err);
         }
         debug("Got value: " + value + " from fetcher for key: " + key);
+
+        if(fetcherOptions) {
+            var staleTtl = fetcherOptions.staleTtl,
+                expiresTtl = fetcherOptions.expiresTtl;
+
+            if (staleTtl !== undefined) {
+                options.staleTtl = staleTtl;
+            }
+            if (expiresTtl !== undefined) {
+                options.expiresTtl = expiresTtl;
+            }
+        }
         this.set(key, value, options);
     }.bind(this));
 };
