@@ -205,9 +205,53 @@ describe("Set - Basic", function () {
 
     it("Should skip cache with TTL of 0", function (done) {
         crispCacheBasic.set("testExpires", "The Value", { expiresTtl: 0 }, function (err, success) {
+            //This isn't great but the only way to really make sure it wasn't set to the cache at all.
             assert.equal(crispCacheBasic.cache['testA'], undefined);
             crispCacheBasic.get('testA', function (err, value) {
                 assert.equal(value, 'fetcher value');
+                done();
+            });
+        })
+    });
+});
+
+describe("Set - Advanced", function () {
+    beforeEach(function () {
+        crispCacheBasic = new CrispCache({
+            fetcher: function(key, callback) {
+                callback(null, 'fetcher', { staleTtl: 123, expiresTtl: 456 })
+            },
+            defaultStaleTtl: 300,
+            defaultExpiresTtl: 500
+        })
+    });
+
+    afterEach(function () {
+        if (clock) {
+            clock.restore();
+        }
+    });
+
+    it("Should set with different TTL", function (done) {
+        clock = sinon.useFakeTimers();
+        crispCacheBasic.get('testA', function (err, value) {
+            assert.equal(err, null);
+            assert.equal(value, 'fetcher');
+            assert.equal(crispCacheBasic.cache['testA'].staleTtl, 123);
+            assert.equal(crispCacheBasic.cache['testA'].expiresTtl, 456);
+            done();
+        });
+    });
+
+    it("Should set with different TTL for existing entry", function (done) {
+        clock = sinon.useFakeTimers();
+        crispCacheBasic.set('testA', 'hello', { staleTtl: 200, expiresTtl: 300 }, function(err, value) {
+            clock.tick(301);
+            crispCacheBasic.get('testA', function (err, value) {
+                assert.equal(err, null);
+                assert.equal(value, 'fetcher');
+                assert.equal(crispCacheBasic.cache['testA'].staleTtl, 123);
+                assert.equal(crispCacheBasic.cache['testA'].expiresTtl, 456);
                 done();
             });
         })
