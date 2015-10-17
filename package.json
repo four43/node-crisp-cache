@@ -36,6 +36,7 @@
     "istanbul": "^0.3.18",
     "mocha": "^2.1.0",
     "mocha-lcov-reporter": "0.0.2",
+    "seed-random": "^2.2.0",
     "sinon": "^1.16.1"
   }
 }
