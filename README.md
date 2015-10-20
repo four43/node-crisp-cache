@@ -66,6 +66,7 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 | `expiresTtlVariance` | (integer, ms) | `0` | How many ms to vary the expiresTtl (+/-, to prevent cache slams) |
 | `evictCheckInterval` | (integer, ms) | `0` | If >0, will check for expired cache entries and delete them from the cache |
 | `ttlVariance` | (integer, ms) | `0` | (Alias for other variance options) How many ms to vary the staleTtl and expiresTtl (+/-, to prevent cache slams) |
+| `maxSize` | (integer) | `null` | Adds a max size for the cache, when elements are added a size is needed. When the cache gets too big LRU purging occurs. |
 
 ### get(key, [options], callback)
 This will try and get `key` (a string) from the cache. By default if the key doesn't exist, the cache will call the configured `fetcher` to get the value. A lock is also set on the key while the value is retrieved. When the value is retrieved it is saved in the cache and used to call callback. Other requests to get this key from the cache are also resolved.
@@ -82,7 +83,7 @@ Set a value to the cache. Will call `callback` (an error first callback) with a 
 | ------ | ---- | ------- | ----------- |
 | `staleTtl` | (integer, ms) | `crispCache.defaultStaleTtl` | How long the cache entry is valid before becoming stale. |
 | `expiresTtl` | (integer, ms) | `crispCache.defaultExpiresTtl` | If >0, cache entries that are older than this time will be deleted |
-
+| `size` | (integer) | `null` | Required when `maxSize` is set on the cache, specifies the size for this entry. |
 
 ### del(key, [callback])
 Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
