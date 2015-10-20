@@ -8,7 +8,8 @@ describe("LRU", function () {
         lru = null;
 
     beforeEach(function () {
-        delSpy = sinon.spy(function(key) {});
+        delSpy = sinon.spy(function (key) {
+        });
         lru = new Lru(10, delSpy);
     });
 
@@ -25,6 +26,14 @@ describe("LRU", function () {
                 lru.put('b', 2);
                 lru.put('c', 3);
                 assert.equal(lru.head.key, 'c');
+            });
+
+            it("Should set the head after multiple adds, mixed order", function () {
+                lru.put('a', 1);
+                lru.put('b', 3);
+                lru.put('c', 2);
+                lru.put('b', 1);
+                assert.equal(lru.head.key, 'b');
             });
 
             it("Should set the head after multiple adds, mixed order", function () {
@@ -94,10 +103,26 @@ describe("LRU", function () {
                 lru.put('a', 4);
                 assert.equal(lru.size, 9);
             });
+
+            it("Should update the head", function () {
+                lru.put('a', 1);
+                lru.put('b', 2);
+                lru.put('c', 3);
+                lru.put('c', 4);
+                assert.equal(lru.size, 7);
+            });
+
+            it("Should update the tail", function () {
+                lru.put('a', 1);
+                lru.put('b', 2);
+                lru.put('c', 3);
+                lru.put('a', 4);
+                assert.equal(lru.size, 9);
+            });
         });
 
-        describe("Over maxSize", function() {
-            it("Should remove an element", function() {
+        describe("Over maxSize", function () {
+            it("Should remove an element", function () {
                 lru.put('a', 5);
                 lru.put('b', 5);
                 lru.put('c', 5);
@@ -107,7 +132,7 @@ describe("LRU", function () {
                 assert.equal(lru.size, 10);
             });
 
-            it("Shouldn't remove any", function() {
+            it("Shouldn't remove any", function () {
                 lru.put('a', 1);
                 lru.put('b', 2);
                 lru.put('c', 3);
@@ -117,7 +142,7 @@ describe("LRU", function () {
                 assert.equal(lru.size, 6);
             });
 
-            it("Should remove 2 elements", function() {
+            it("Should remove 2 elements", function () {
                 lru.put('a', 2);
                 lru.put('b', 5);
                 lru.put('c', 10);
@@ -160,4 +185,13 @@ describe("LRU", function () {
             assert.equal(lru.size, 5);
         });
     });
+
+    describe("toString", function () {
+        it("Should output the state", function () {
+            lru.put('a', 1);
+            lru.put('b', 2);
+            lru.put('c', 3);
+            assert.equal("" + lru, "Size: 6/10, Head: c -> b -> a :Tail");
+        });
+    })
 });
