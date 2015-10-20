@@ -151,6 +151,9 @@ describe("CrispCache", function () {
         });
 
         afterEach(function () {
+            if (clock) {
+                clock.restore();
+            }
             seed.resetGlobal();
         });
 
@@ -168,12 +171,14 @@ describe("CrispCache", function () {
         });
 
         it("Should only fetch once for 2 cache misses", function (done) {
+            clock = sinon.useFakeTimers();
             async.parallel([
                     function (callback) {
                         crispCacheBasic.get('hello', callback);
                     },
                     function (callback) {
                         crispCacheBasic.get('hello', callback);
+                        clock.tick(1000);
                     }
                 ],
                 function (err, results) {
@@ -507,6 +512,47 @@ describe("CrispCache", function () {
                     done();
                 });
             })
+        });
+
+        it("Should update LRU", function (done) {
+            async.waterfall([
+                    function (callback) {
+                        crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
+                    },
+                    function (result, callback) {
+                        crispCacheBasic.set("testB", "The Value B", {size: 8}, callback);
+                    },
+                    function (result, callback) {
+                        crispCacheBasic.get("testA", callback);
+                    }
+                ],
+                function (err, result) {
+                    assert.equal(result, "The Value A");
+                    assert.equal(crispCacheBasic._lru.head.key, 'testA');
+                    done();
+                });
+        });
+
+        it("Should update LRU without size", function (done) {
+            crispCacheBasic.set("testA", "The Value A", function (err, result) {
+                assert.ok(err);
+                done();
+            });
+        });
+
+        it("Should remove LRU via crispCache", function (done) {
+            async.waterfall([
+                    function (callback) {
+                        crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
+                    },
+                    function (result, callback) {
+                        crispCacheBasic.del("testA", callback);
+                    }
+                ],
+                function (err, result) {
+                    assert.equal(crispCacheBasic._lru.size, 0);
+                    done();
+                });
         });
 
         it("Should remove LRU", function (done) {
