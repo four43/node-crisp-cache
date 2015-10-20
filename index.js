@@ -1,5 +1,6 @@
 var CacheEntry = require('./lib/CacheEntry'),
-    debug = require('debug')('crisp-cache');
+    debug = require('debug')('crisp-cache'),
+    Lru = null;
 /**
  *
  * @param options
@@ -9,28 +10,37 @@ function CrispCache(options) {
     if (options === undefined) {
         options = {};
     }
-    this.defaultStaleTtl = options.defaultStaleTtl;
-    this.staleTtlVariance = options.staleTtlVariance || options.ttlVariance || 0;
-    this.staleCheckInterval = options.staleCheckInterval;
 
-    this.defaultExpiresTtl = options.defaultExpiresTtl;
-    this.expiresTtlVariance = options.expiresTtlVariance || options.ttlVariance || 0;
-    this.evictCheckInterval = options.evictCheckInterval || 0;
-
+    //Fetcher
     if (!options.fetcher) {
         throw new Error("Must pass a fetcher option, a fetcher is a function(key, callback) that can retrieve a key from a repository");
     }
     this.fetcher = options.fetcher;
-    this.cache = {};
-    this.locks = {};
 
+    // Stale Control
+    this.defaultStaleTtl = options.defaultStaleTtl;
+    this.staleTtlVariance = options.staleTtlVariance || options.ttlVariance || 0;
+    this.staleCheckInterval = options.staleCheckInterval;
     if (this.staleCheckInterval) {
         setInterval(this._staleCheck.bind(this), this.staleCheckInterval);
     }
 
+    // Expires Control
+    this.defaultExpiresTtl = options.defaultExpiresTtl;
+    this.expiresTtlVariance = options.expiresTtlVariance || options.ttlVariance || 0;
+    this.evictCheckInterval = options.evictCheckInterval || 0;
     if (this.evictCheckInterval && this.evictCheckInterval > 0) {
         setInterval(this._evictCheck.bind(this), this.evictCheckInterval);
     }
+
+    this.maxSize = options.maxSize;
+    if (this.maxSize) {
+        Lru = require('./lib/Lru');
+        this._lru = new Lru(this.maxSize, this.del.bind(this));
+    }
+
+    this.cache = {};
+    this.locks = {};
 }
 
 /**
@@ -67,11 +77,17 @@ CrispCache.prototype.get = function (key, options, callback) {
         var cacheEntry = this.cache[key];
 
         if (cacheEntry.isValid()) {
+            if(this._lru) {
+                this._lru.put(key, cacheEntry.size);
+            }
             return callback(null, cacheEntry.getValue());
         }
         else if (cacheEntry.isStale()) {
             //Stale, try and update the cache but return what we have.
             debug("- Stale, returning current value but re-fetching");
+            if(this._lru) {
+                this._lru.put(key, cacheEntry.size);
+            }
             callback(null, cacheEntry.getValue());
             this._fetch(key, {
                 staleTtl: cacheEntry.staleTtl,
@@ -89,7 +105,7 @@ CrispCache.prototype.get = function (key, options, callback) {
             else {
                 //Fetch this key
                 debug(" - Fetching, will callback when we have it");
-                this.del(key, function(err, success) {
+                this.del(key, function (err, success) {
                     this._fetch(key, {
                         staleTtl: cacheEntry.staleTtl,
                         expiresTtl: cacheEntry.expiresTtl
@@ -127,12 +143,23 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         expiresTtl = this._getDefaultExpiresTtl();
     }
 
-    if(expiresTtl !== 0) {
-        this.cache[key] = new CacheEntry({
+    if (this._lru && options.size === undefined) {
+        var errStr = 'Cache entry set without size and maxSize is enabled, key was: ' + key;
+        debug(errStr);
+        return callback(new Error(errStr));
+    }
+
+    if (expiresTtl !== 0) {
+        var cacheEntry = new CacheEntry({
             value: value,
             staleTtl: staleTtl,
-            expiresTtl: expiresTtl
+            expiresTtl: expiresTtl,
+            size: options.size
         });
+        this.cache[key] = cacheEntry;
+        if(this._lru) {
+            this._lru.put(key, cacheEntry.size);
+        }
     }
     this._resolveLocks(key, value);
     if (callback) {
@@ -148,7 +175,15 @@ CrispCache.prototype.set = function (key, value, options, callback) {
  * @param {valueCb} [callback]
  * @returns {*}
  */
-CrispCache.prototype.del = function (key, callback) {
+CrispCache.prototype.del = function (key, options, callback) {
+    if (typeof options === 'function' && !callback) {
+        callback = options;
+        options = {};
+    }
+
+    if(this._lru && !options.skipLruDelete) {
+        this._lru.del(key, true);
+    }
     delete this.cache[key];
     this._resolveLocks(key, undefined);
     if (callback) {
@@ -193,15 +228,19 @@ CrispCache.prototype._fetch = function (key, options, callback) {
         }
         debug("Got value: " + value + " from fetcher for key: " + key);
 
-        if(fetcherOptions) {
+        if (fetcherOptions) {
             var staleTtl = fetcherOptions.staleTtl,
-                expiresTtl = fetcherOptions.expiresTtl;
+                expiresTtl = fetcherOptions.expiresTtl,
+                size = fetcherOptions.size;
 
             if (staleTtl !== undefined) {
                 options.staleTtl = staleTtl;
             }
             if (expiresTtl !== undefined) {
                 options.expiresTtl = expiresTtl;
+            }
+            if (size !== undefined) {
+                options.size = size;
             }
         }
         this.set(key, value, options);
@@ -290,8 +329,8 @@ CrispCache.prototype._resolveLocks = function (key, value, err) {
  * @returns {Number}
  * @private
  */
-CrispCache.prototype._getDefaultStaleTtl = function() {
-    if(this.staleTtlVariance) {
+CrispCache.prototype._getDefaultStaleTtl = function () {
+    if (this.staleTtlVariance) {
         return Math.round(this.defaultStaleTtl + (Math.random() * this.staleTtlVariance) - (this.staleTtlVariance / 2));
     }
     else {
@@ -304,8 +343,8 @@ CrispCache.prototype._getDefaultStaleTtl = function() {
  * @returns {Number}
  * @private
  */
-CrispCache.prototype._getDefaultExpiresTtl = function() {
-    if(this.expiresTtlVariance) {
+CrispCache.prototype._getDefaultExpiresTtl = function () {
+    if (this.expiresTtlVariance) {
         return Math.round(this.defaultExpiresTtl + (Math.random() * this.expiresTtlVariance) - (this.expiresTtlVariance / 2));
     }
     else {
