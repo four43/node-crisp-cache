@@ -1,6 +1,6 @@
 var CacheEntry = require('./lib/CacheEntry'),
     debug = require('debug')('crisp-cache'),
-    Lru = require('./lib/Lru');
+    Lru = null;
 /**
  *
  * @param options
@@ -34,6 +34,10 @@ function CrispCache(options) {
     }
 
     this.maxSize = options.maxSize;
+    if (this.maxSize) {
+        Lru = require('./lib/Lru');
+        this._lru = new Lru(this.maxSize, this.del.bind(this));
+    }
 
     this.cache = {};
     this.locks = {};
@@ -73,11 +77,17 @@ CrispCache.prototype.get = function (key, options, callback) {
         var cacheEntry = this.cache[key];
 
         if (cacheEntry.isValid()) {
+            if(this._lru) {
+                this._lru.put(key, cacheEntry.size);
+            }
             return callback(null, cacheEntry.getValue());
         }
         else if (cacheEntry.isStale()) {
             //Stale, try and update the cache but return what we have.
             debug("- Stale, returning current value but re-fetching");
+            if(this._lru) {
+                this._lru.put(key, cacheEntry.size);
+            }
             callback(null, cacheEntry.getValue());
             this._fetch(key, {
                 staleTtl: cacheEntry.staleTtl,
@@ -133,18 +143,23 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         expiresTtl = this._getDefaultExpiresTtl();
     }
 
-    if (this.maxSize !== undefined && options.size === undefined) {
+    if (this._lru && options.size === undefined) {
         var errStr = 'Cache entry set without size and maxSize is enabled, key was: ' + key;
         debug(errStr);
         return callback(new Error(errStr));
     }
 
     if (expiresTtl !== 0) {
-        this.cache[key] = new CacheEntry({
+        var cacheEntry = new CacheEntry({
             value: value,
             staleTtl: staleTtl,
-            expiresTtl: expiresTtl
+            expiresTtl: expiresTtl,
+            size: options.size
         });
+        this.cache[key] = cacheEntry;
+        if(this._lru) {
+            this._lru.put(key, cacheEntry.size);
+        }
     }
     this._resolveLocks(key, value);
     if (callback) {
@@ -160,7 +175,15 @@ CrispCache.prototype.set = function (key, value, options, callback) {
  * @param {valueCb} [callback]
  * @returns {*}
  */
-CrispCache.prototype.del = function (key, callback) {
+CrispCache.prototype.del = function (key, options, callback) {
+    if (typeof options === 'function' && !callback) {
+        callback = options;
+        options = {};
+    }
+
+    if(this._lru && !options.skipLruDelete) {
+        this._lru.del(key, true);
+    }
     delete this.cache[key];
     this._resolveLocks(key, undefined);
     if (callback) {
@@ -207,13 +230,17 @@ CrispCache.prototype._fetch = function (key, options, callback) {
 
         if (fetcherOptions) {
             var staleTtl = fetcherOptions.staleTtl,
-                expiresTtl = fetcherOptions.expiresTtl;
+                expiresTtl = fetcherOptions.expiresTtl,
+                size = fetcherOptions.size;
 
             if (staleTtl !== undefined) {
                 options.staleTtl = staleTtl;
             }
             if (expiresTtl !== undefined) {
                 options.expiresTtl = expiresTtl;
+            }
+            if (size !== undefined) {
+                options.size = size;
             }
         }
         this.set(key, value, options);

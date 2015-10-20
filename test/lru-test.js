@@ -21,6 +21,12 @@ describe("LRU", function () {
                 assert.equal(lru.head.key, 'a');
             });
 
+            it("Should replace the head", function () {
+                lru.put('a', 1);
+                lru.put('a', 2);
+                assert.equal(lru.head.key, 'a');
+            });
+
             it("Should set the head after multiple adds", function () {
                 lru.put('a', 1);
                 lru.put('b', 2);
@@ -150,6 +156,16 @@ describe("LRU", function () {
                 assert.equal(lru.head.key, 'c');
                 assert.equal(lru.tail.key, 'c');
                 assert.equal(lru.size, 10);
+            });
+
+            it("Should remove multiple elements", function () {
+                lru.put('a', 2);
+                lru.put('b', 8);
+                lru.put('c', 5);
+                assert.equal(delSpy.callCount, 2);
+                assert.equal(lru.head.key, 'c');
+                assert.equal(lru.tail.key, 'c');
+                assert.equal(lru.size, 5);
             });
         })
     });
