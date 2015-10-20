@@ -1,5 +1,6 @@
 var CacheEntry = require('./lib/CacheEntry'),
-    debug = require('debug')('crisp-cache');
+    debug = require('debug')('crisp-cache'),
+    Lru = require('./lib/Lru');
 /**
  *
  * @param options
@@ -9,28 +10,33 @@ function CrispCache(options) {
     if (options === undefined) {
         options = {};
     }
-    this.defaultStaleTtl = options.defaultStaleTtl;
-    this.staleTtlVariance = options.staleTtlVariance || options.ttlVariance || 0;
-    this.staleCheckInterval = options.staleCheckInterval;
 
-    this.defaultExpiresTtl = options.defaultExpiresTtl;
-    this.expiresTtlVariance = options.expiresTtlVariance || options.ttlVariance || 0;
-    this.evictCheckInterval = options.evictCheckInterval || 0;
-
+    //Fetcher
     if (!options.fetcher) {
         throw new Error("Must pass a fetcher option, a fetcher is a function(key, callback) that can retrieve a key from a repository");
     }
     this.fetcher = options.fetcher;
-    this.cache = {};
-    this.locks = {};
 
+    // Stale Control
+    this.defaultStaleTtl = options.defaultStaleTtl;
+    this.staleTtlVariance = options.staleTtlVariance || options.ttlVariance || 0;
+    this.staleCheckInterval = options.staleCheckInterval;
     if (this.staleCheckInterval) {
         setInterval(this._staleCheck.bind(this), this.staleCheckInterval);
     }
 
+    // Expires Control
+    this.defaultExpiresTtl = options.defaultExpiresTtl;
+    this.expiresTtlVariance = options.expiresTtlVariance || options.ttlVariance || 0;
+    this.evictCheckInterval = options.evictCheckInterval || 0;
     if (this.evictCheckInterval && this.evictCheckInterval > 0) {
         setInterval(this._evictCheck.bind(this), this.evictCheckInterval);
     }
+
+    this.maxSize = options.maxSize;
+
+    this.cache = {};
+    this.locks = {};
 }
 
 /**
@@ -89,7 +95,7 @@ CrispCache.prototype.get = function (key, options, callback) {
             else {
                 //Fetch this key
                 debug(" - Fetching, will callback when we have it");
-                this.del(key, function(err, success) {
+                this.del(key, function (err, success) {
                     this._fetch(key, {
                         staleTtl: cacheEntry.staleTtl,
                         expiresTtl: cacheEntry.expiresTtl
@@ -127,7 +133,13 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         expiresTtl = this._getDefaultExpiresTtl();
     }
 
-    if(expiresTtl !== 0) {
+    if (this.maxSize !== undefined && options.size === undefined) {
+        var errStr = 'Cache entry set without size and maxSize is enabled, key was: ' + key;
+        debug(errStr);
+        return callback(new Error(errStr));
+    }
+
+    if (expiresTtl !== 0) {
         this.cache[key] = new CacheEntry({
             value: value,
             staleTtl: staleTtl,
@@ -193,7 +205,7 @@ CrispCache.prototype._fetch = function (key, options, callback) {
         }
         debug("Got value: " + value + " from fetcher for key: " + key);
 
-        if(fetcherOptions) {
+        if (fetcherOptions) {
             var staleTtl = fetcherOptions.staleTtl,
                 expiresTtl = fetcherOptions.expiresTtl;
 
@@ -290,8 +302,8 @@ CrispCache.prototype._resolveLocks = function (key, value, err) {
  * @returns {Number}
  * @private
  */
-CrispCache.prototype._getDefaultStaleTtl = function() {
-    if(this.staleTtlVariance) {
+CrispCache.prototype._getDefaultStaleTtl = function () {
+    if (this.staleTtlVariance) {
         return Math.round(this.defaultStaleTtl + (Math.random() * this.staleTtlVariance) - (this.staleTtlVariance / 2));
     }
     else {
@@ -304,8 +316,8 @@ CrispCache.prototype._getDefaultStaleTtl = function() {
  * @returns {Number}
  * @private
  */
-CrispCache.prototype._getDefaultExpiresTtl = function() {
-    if(this.expiresTtlVariance) {
+CrispCache.prototype._getDefaultExpiresTtl = function () {
+    if (this.expiresTtlVariance) {
         return Math.round(this.defaultExpiresTtl + (Math.random() * this.expiresTtlVariance) - (this.expiresTtlVariance / 2));
     }
     else {
