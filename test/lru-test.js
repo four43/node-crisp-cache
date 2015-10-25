@@ -130,6 +130,35 @@ describe("LRU", function () {
             });
         });
 
+        describe("Hash size changes", function () {
+            it("Should set an entry", function () {
+                lru.put('a', 1);
+                assert.equal(Object.keys(lru.hash).length, 1);
+            });
+
+            it("Should set the size after multiple adds", function () {
+                lru.put('a', 1);
+                lru.put('b', 2);
+                lru.put('c', 3);
+                assert.equal(Object.keys(lru.hash).length, 3);
+            });
+
+            it("Should set the size after multiple adds, repeat", function () {
+                lru.put('a', 1);
+                lru.put('b', 2);
+                lru.put('c', 3);
+                lru.put('b', 2);
+                assert.equal(Object.keys(lru.hash).length, 3);
+            });
+
+            it("Should remove an element and hash entry", function () {
+                lru.put('a', 5);
+                lru.put('b', 5);
+                lru.put('c', 5);
+                assert.equal(Object.keys(lru.hash).length, 2);
+            });
+        });
+
         describe("Over maxSize", function () {
             it("Should remove an element", function () {
                 lru.put('a', 5);
