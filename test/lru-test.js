@@ -10,7 +10,10 @@ describe("LRU", function () {
     beforeEach(function () {
         delSpy = sinon.spy(function (key) {
         });
-        lru = new Lru(10, delSpy);
+        lru = new Lru({
+            maxSize: 10,
+            delCallback: delSpy
+        });
     });
 
     describe("Put", function () {
@@ -124,6 +127,35 @@ describe("LRU", function () {
                 lru.put('c', 3);
                 lru.put('a', 4);
                 assert.equal(lru.size, 9);
+            });
+        });
+
+        describe("Hash size changes", function () {
+            it("Should set an entry", function () {
+                lru.put('a', 1);
+                assert.equal(Object.keys(lru.hash).length, 1);
+            });
+
+            it("Should set the size after multiple adds", function () {
+                lru.put('a', 1);
+                lru.put('b', 2);
+                lru.put('c', 3);
+                assert.equal(Object.keys(lru.hash).length, 3);
+            });
+
+            it("Should set the size after multiple adds, repeat", function () {
+                lru.put('a', 1);
+                lru.put('b', 2);
+                lru.put('c', 3);
+                lru.put('b', 2);
+                assert.equal(Object.keys(lru.hash).length, 3);
+            });
+
+            it("Should remove an element and hash entry", function () {
+                lru.put('a', 5);
+                lru.put('b', 5);
+                lru.put('c', 5);
+                assert.equal(Object.keys(lru.hash).length, 2);
             });
         });
 

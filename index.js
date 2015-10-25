@@ -36,7 +36,10 @@ function CrispCache(options) {
     this.maxSize = options.maxSize;
     if (this.maxSize) {
         Lru = require('./lib/Lru');
-        this._lru = new Lru(this.maxSize, this.del.bind(this));
+        this._lru = new Lru({
+            maxSize: this.maxSize,
+            delCallback: this.del.bind(this)
+        });
     }
 
     this.cache = {};
@@ -77,7 +80,7 @@ CrispCache.prototype.get = function (key, options, callback) {
         var cacheEntry = this.cache[key];
 
         if (cacheEntry.isValid()) {
-            if(this._lru) {
+            if (this._lru) {
                 this._lru.put(key, cacheEntry.size);
             }
             return callback(null, cacheEntry.getValue());
@@ -85,7 +88,7 @@ CrispCache.prototype.get = function (key, options, callback) {
         else if (cacheEntry.isStale()) {
             //Stale, try and update the cache but return what we have.
             debug("- Stale, returning current value but re-fetching");
-            if(this._lru) {
+            if (this._lru) {
                 this._lru.put(key, cacheEntry.size);
             }
             callback(null, cacheEntry.getValue());
@@ -157,7 +160,7 @@ CrispCache.prototype.set = function (key, value, options, callback) {
             size: options.size
         });
         this.cache[key] = cacheEntry;
-        if(this._lru) {
+        if (this._lru) {
             this._lru.put(key, cacheEntry.size);
         }
     }
@@ -181,7 +184,7 @@ CrispCache.prototype.del = function (key, options, callback) {
         options = {};
     }
 
-    if(this._lru && !options.skipLruDelete) {
+    if (this._lru && !options.skipLruDelete) {
         this._lru.del(key, true);
     }
     delete this.cache[key];
