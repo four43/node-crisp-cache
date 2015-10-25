@@ -58,7 +58,7 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `fetcher` | (callable)* | null | A method to call when we need to update a cache entry, should have signature: function(key, callback(err, value, options)) |
+| `fetcher` | (callable)* | null | A method to call when we need to update a cache entry, should have signature: function(key, callback(err, value, options))[1] |
 | `defaultStaleTtl` | (integer, ms) | `300000` | How long the cache entry is valid before becoming stale. |
 | `staleTtlVariance` | (integer, ms) | `0` | How many ms to vary the staleTtl (+/-, to prevent cache slams) |
 | `staleCheckInterval` | (integer, ms) | `0` | If >0, how often to check for stale keys and re-fetch |
@@ -66,7 +66,13 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 | `expiresTtlVariance` | (integer, ms) | `0` | How many ms to vary the expiresTtl (+/-, to prevent cache slams) |
 | `evictCheckInterval` | (integer, ms) | `0` | If >0, will check for expired cache entries and delete them from the cache |
 | `ttlVariance` | (integer, ms) | `0` | (Alias for other variance options) How many ms to vary the staleTtl and expiresTtl (+/-, to prevent cache slams) |
-| `maxSize` | (integer) | `null` | Adds a max size for the cache, when elements are added a size is needed. When the cache gets too big LRU purging occurs. |
+| `maxSize` | (integer) | `null` | Adds a max size for the cache, when elements are added a size is needed. When the cache gets too big LRU purging occurs.[2] |
+
+**Notes:** 
+
+[1] The fetcher callback's options are the same as `set()` below. This allows indivudual keys to have different settings. 
+
+[2] maxSize is most effective when combined with the `size` option when individual keys are set. See the below methods for more information.
 
 ### get(key, [options], callback)
 This will try and get `key` (a string) from the cache. By default if the key doesn't exist, the cache will call the configured `fetcher` to get the value. A lock is also set on the key while the value is retrieved. When the value is retrieved it is saved in the cache and used to call callback. Other requests to get this key from the cache are also resolved.
@@ -168,6 +174,25 @@ crispCacheBasic.get('a', function (err, value) {
     //    update to the stale data. When new data is available, users requesting 'a' will get the new record instead.
 });
 ```
+
+### maxSize and LRU
+
+If a `maxCache` option is provided a Least Recently Used (LRU) module is loaded to handle evicting cache entries that haven't been touched in a while. This helps us maintain a `maxSize` for the cache.
+
+We can create and use a new cache using `maxSize`:
+
+```javascript
+var crispCacheBasic = new CrispCache({
+    fetcher: fetcher,
+    maxSize: 10
+});
+
+// Call the following series, taking a small liberties
+crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
+crispCacheBasic.set("testB", "The Value B", {size: 8}, callback);
+crispCacheBasic.set("testC", "The Value C", {size: 5}, callback);
+```
+Will result in the cache containing just the `testC` entry. The `testA` entry was added, then the `testB` entry. These are both held in cache because their sizes meet the `maxSize` of `10` but don't exceed it yet. When `testC` is added however, the cache finds that `testA` is the oldest and removes it. Seeing that the cache is still too large (`testC`'s 5 + `testB`'s 8 > our `maxSize` of 10) it removes `testB` too, leaving us with just `testC` in the cache.
 
 ## Roadmap
 
