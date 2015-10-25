@@ -10,7 +10,10 @@ describe("LRU", function () {
     beforeEach(function () {
         delSpy = sinon.spy(function (key) {
         });
-        lru = new Lru(10, delSpy);
+        lru = new Lru({
+            maxSize: 10,
+            delCallback: delSpy
+        });
     });
 
     describe("Put", function () {
