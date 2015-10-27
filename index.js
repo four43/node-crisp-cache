@@ -183,6 +183,7 @@ CrispCache.prototype.del = function (key, options, callback) {
         callback = options;
         options = {};
     }
+    if (options === undefined) { options = {} }
 
     if (this._lru && !options.skipLruDelete) {
         this._lru.del(key, true);
