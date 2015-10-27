@@ -483,10 +483,13 @@ describe("CrispCache", function () {
 
     describe("LRU Integration", function () {
         beforeEach(function () {
+            clock = sinon.useFakeTimers();
             crispCacheBasic = new CrispCache({
                 fetcher: fetcher,
-                maxSize: 10
-            })
+                maxSize: 10,
+                defaultExpiresTtl: 50,
+                evictCheckInterval: 100
+            });
         });
 
         it("Should increase LRU size", function (done) {
@@ -585,6 +588,19 @@ describe("CrispCache", function () {
                     assert.equal(result, null);
                     done();
                 });
+        });
+
+        it('Should auto-evict entries from LRU cache', function(done) {
+          crispCacheBasic._lru.del = sinon.spy(crispCacheBasic._lru.del);
+
+          crispCacheBasic.set('foo', 'bar', {size: 1}, function(err) {
+            assert.ifError(err);
+
+            clock.tick(101);
+
+            assert(crispCacheBasic._lru.del.calledWith('foo'), 'Should evicted expired entry');
+            done();
+          });
         });
 
     });
