@@ -1,6 +1,9 @@
 var CacheEntry = require('./lib/CacheEntry'),
     debug = require('debug')('crisp-cache'),
-    Lru = null;
+    EventEmitter = require('events'),
+    Lru = null,
+    util = require('util');
+
 /**
  *
  * @param options
@@ -44,7 +47,13 @@ function CrispCache(options) {
 
     this.cache = {};
     this.locks = {};
+
+    this.emitEvents = options.emitEvents !== undefined ? options.emitEvents : true;
 }
+util.inherits(CrispCache, EventEmitter);
+
+CrispCache.EVENT_HIT = 'hit';
+CrispCache.EVENT_MISS = 'miss';
 
 /**
  *
@@ -64,6 +73,9 @@ CrispCache.prototype.get = function (key, options, callback) {
     if (this.cache[key] === undefined || options.forceFetch) {
         //Cache miss.
         debug("- MISS");
+
+		this._emit(CrispCache.EVENT_MISS, { key: key });
+
         if (options.skipFetch) {
             debug(" - Skipping fetch, returning undefined");
             return callback(null, undefined);
@@ -78,6 +90,8 @@ CrispCache.prototype.get = function (key, options, callback) {
         //Cache hit, what is the state?
         debug("- Hit");
         var cacheEntry = this.cache[key];
+
+		this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
 
         if (cacheEntry.isValid()) {
             if (this._lru) {
@@ -354,6 +368,12 @@ CrispCache.prototype._getDefaultExpiresTtl = function () {
     else {
         return this.defaultExpiresTtl
     }
+};
+
+CrispCache.prototype._emit = function(name, options) {
+	if(this.emitEvents) {
+		this.emit(name, options);
+	}
 };
 
 /**

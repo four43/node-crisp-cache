@@ -19,16 +19,12 @@ function fetcherBad(key, callback) {
     callback(new Error("There was a problem with the fetcher"));
 }
 
-var clock,
-    crispCacheBasic,
-    fetcherSpy;
-
 describe("CrispCache", function () {
     describe("Setup Sanity", function () {
         it("Should complain if we have no fetcher", function () {
             assert.throws(
                 function () {
-                    var crispCache = new CrispCache();
+                    new CrispCache();
                 },
                 "Should complain that we don't have a fetcher!"
             );
@@ -44,6 +40,11 @@ describe("CrispCache", function () {
     });
 
     describe("Get - Basic", function () {
+
+        var clock,
+            crispCacheBasic,
+            fetcherSpy;
+
         beforeEach(function () {
             fetcherSpy = sinon.spy(fetcher);
             crispCacheBasic = new CrispCache({
@@ -141,6 +142,11 @@ describe("CrispCache", function () {
     });
 
     describe("Get - Advanced", function () {
+
+        var clock,
+            crispCacheBasic,
+            fetcherSpy;
+
         beforeEach(function () {
             fetcherSpy = sinon.spy(fetcher);
             crispCacheBasic = new CrispCache({
@@ -157,7 +163,7 @@ describe("CrispCache", function () {
             seed.resetGlobal();
         });
 
-        it("Should fetch a key", function (done) {
+        it("Should fetch a key - force fetch", function (done) {
             crispCacheBasic.get('hello', function (err, value) {
                 assert.equal(err, null);
                 assert.equal(value, 'world');
@@ -170,7 +176,7 @@ describe("CrispCache", function () {
             });
         });
 
-        it("Should only fetch once for 2 cache misses", function (done) {
+        it("Should only fetch once for 2 cache misses (locking)", function (done) {
             clock = sinon.useFakeTimers();
             async.parallel([
                     function (callback) {
@@ -270,7 +276,57 @@ describe("CrispCache", function () {
         });
     });
 
+    describe("Get - Events", function() {
+
+        var crispCache,
+            hitSpy,
+            missSpy;
+
+        beforeEach(function () {
+            hitSpy = sinon.spy(function(obj) {
+                return obj;
+            });
+            missSpy = sinon.spy(function(obj) {
+                return obj;
+            });
+            crispCache = new CrispCache({
+                fetcher: fetcher,
+                defaultStaleTtl: 300,
+                defaultExpiresTtl: 500
+            });
+            crispCache.on('hit', hitSpy);
+            crispCache.on('miss', missSpy);
+        });
+
+        it("Should emit hit when getting from cache", function (done) {
+            crispCache.get('hello', function (err, value) {
+                assert.equal(missSpy.callCount, 1);
+                assert.equal(hitSpy.callCount, 0);
+                crispCache.get('hello', function (err, value) {
+                    assert.equal(missSpy.callCount, 1);
+                    assert.equal(hitSpy.callCount, 1);
+                    done();
+                });
+            });
+        });
+
+        it("Should emit miss twice on force fetch", function (done) {
+            crispCache.get('hello', function (err, value) {
+                assert.equal(missSpy.callCount, 1);
+                assert.equal(hitSpy.callCount, 0);
+                crispCache.get('hello', {forceFetch: true}, function (err, value) {
+                    assert.equal(missSpy.callCount, 2);
+                    assert.equal(hitSpy.callCount, 0);
+                    done();
+                });
+            });
+        });
+    });
+
     describe("Set - Basic", function () {
+
+        var crispCacheBasic;
+
         beforeEach(function () {
             crispCacheBasic = new CrispCache({
                 fetcher: function (key, callback) {
@@ -303,6 +359,10 @@ describe("CrispCache", function () {
     });
 
     describe("Set - Advanced", function () {
+
+        var clock,
+            crispCacheBasic;
+
         beforeEach(function () {
             crispCacheBasic = new CrispCache({
                 fetcher: function (key, callback) {
@@ -346,6 +406,10 @@ describe("CrispCache", function () {
     });
 
     describe("Del - Basic", function () {
+
+        var crispCacheBasic,
+            fetcherSpy;
+
         beforeEach(function () {
             fetcherSpy = sinon.spy(fetcher);
             crispCacheBasic = new CrispCache({
@@ -379,6 +443,11 @@ describe("CrispCache", function () {
 
     var staleCheckSpy;
     describe("StaleCheck - Auto refresh cache", function () {
+
+        var clock,
+            crispCacheBasic,
+            fetcherSpy;
+
         beforeEach(function () {
             clock = sinon.useFakeTimers();
 
@@ -434,6 +503,11 @@ describe("CrispCache", function () {
 
     var delSpy;
     describe("ExpiresCheck - Auto clean cache", function () {
+
+        var clock,
+            crispCacheBasic,
+            fetcherSpy;
+
         beforeEach(function () {
             clock = sinon.useFakeTimers();
             if (!CrispCache.prototype._del_orig) {
@@ -482,6 +556,11 @@ describe("CrispCache", function () {
     });
 
     describe("LRU Integration", function () {
+
+        var clock,
+            crispCacheBasic,
+            fetcherSpy;
+
         beforeEach(function () {
             clock = sinon.useFakeTimers();
             crispCacheBasic = new CrispCache({
