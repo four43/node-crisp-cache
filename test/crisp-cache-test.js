@@ -1,6 +1,6 @@
 var assert = require('assert'),
     async = require('async'),
-    CrispCache = require('../index'),
+    CrispCache = require('../main'),
     seed = require('seed-random'),
     sinon = require('sinon');
 
