@@ -279,33 +279,46 @@ describe("CrispCache", function () {
 
     describe("Get - Events", function() {
 
-        var crispCache,
-            hitSpy,
-            missSpy;
+        var clock,
+            crispCache,
+            eventHitSpy,
+            eventMissSpy,
+            eventFetchSpy,
+            eventFetchDoneSpy;
 
         beforeEach(function () {
-            hitSpy = sinon.spy(function(obj) {
+            var simpleReturn = function(obj) {
                 return obj;
-            });
-            missSpy = sinon.spy(function(obj) {
-                return obj;
-            });
+            };
+            eventHitSpy = sinon.spy(simpleReturn);
+            eventMissSpy = sinon.spy(simpleReturn);
+            eventFetchSpy = sinon.spy(simpleReturn);
+            eventFetchDoneSpy = sinon.spy(simpleReturn);
+
             crispCache = new CrispCache({
                 fetcher: fetcher,
                 defaultStaleTtl: 300,
                 defaultExpiresTtl: 500
             });
-            crispCache.on('hit', hitSpy);
-            crispCache.on('miss', missSpy);
+            crispCache.on('hit', eventHitSpy);
+            crispCache.on('miss', eventMissSpy);
+            crispCache.on('fetch', eventFetchSpy);
+            crispCache.on('fetchDone', eventFetchDoneSpy);
+        });
+
+        afterEach(function () {
+            if (clock) {
+                clock.restore();
+            }
         });
 
         it("Should emit hit when getting from cache", function (done) {
             crispCache.get('hello', function (err, value) {
-                assert.equal(missSpy.callCount, 1);
-                assert.equal(hitSpy.callCount, 0);
+                assert.equal(eventMissSpy.callCount, 1);
+                assert.equal(eventHitSpy.callCount, 0);
                 crispCache.get('hello', function (err, value) {
-                    assert.equal(missSpy.callCount, 1);
-                    assert.equal(hitSpy.callCount, 1);
+                    assert.equal(eventMissSpy.callCount, 1);
+                    assert.equal(eventHitSpy.callCount, 1);
                     done();
                 });
             });
@@ -313,26 +326,42 @@ describe("CrispCache", function () {
 
         it("Should emit events with correct values", function (done) {
             crispCache.get('hello', function (err, value) {
-                assert.equal(missSpy.callCount, 1);
-                assert.ok(missSpy.returned({ key: 'hello' }));
-                assert.equal(hitSpy.callCount, 0);
+                assert.equal(eventMissSpy.callCount, 1);
+                assert.ok(eventMissSpy.returned({ key: 'hello' }));
+                assert.equal(eventHitSpy.callCount, 0);
                 crispCache.get('hello', function (err, value) {
-                    assert.equal(missSpy.callCount, 1);
-                    assert.equal(hitSpy.callCount, 1);
-                    assert.ok(hitSpy.lastCall.returnValue.entry instanceof CacheEntry);
-                    assert.equal(hitSpy.lastCall.returnValue.entry.value, 'world');
+                    assert.equal(eventMissSpy.callCount, 1);
+                    assert.equal(eventHitSpy.callCount, 1);
+                    assert.ok(eventHitSpy.lastCall.returnValue.entry instanceof CacheEntry);
+                    assert.equal(eventHitSpy.lastCall.returnValue.entry.value, 'world');
                     done();
                 });
             });
         });
 
+        it("Should emit fetch events", function (done) {
+            clock = sinon.useFakeTimers();
+            crispCache.get('hello', function (err, value) {
+                assert.equal(eventFetchSpy.callCount, 1);
+                assert.equal(eventFetchDoneSpy.callCount, 1);
+                assert.equal(eventFetchDoneSpy.lastCall.returnValue.key, 'hello');
+                assert.equal(eventFetchDoneSpy.lastCall.returnValue.value, 'world');
+                done();
+            });
+            assert.equal(eventMissSpy.callCount, 1);
+            assert.equal(eventFetchSpy.callCount, 1);
+            assert.ok(eventFetchSpy.returned({ key: 'hello' }));
+            assert.equal(eventFetchDoneSpy.callCount, 0);
+            clock.tick(10);
+        });
+
         it("Should emit miss twice on force fetch", function (done) {
             crispCache.get('hello', function (err, value) {
-                assert.equal(missSpy.callCount, 1);
-                assert.equal(hitSpy.callCount, 0);
+                assert.equal(eventMissSpy.callCount, 1);
+                assert.equal(eventHitSpy.callCount, 0);
                 crispCache.get('hello', {forceFetch: true}, function (err, value) {
-                    assert.equal(missSpy.callCount, 2);
-                    assert.equal(hitSpy.callCount, 0);
+                    assert.equal(eventMissSpy.callCount, 2);
+                    assert.equal(eventHitSpy.callCount, 0);
                     done();
                 });
             });
@@ -345,15 +374,15 @@ describe("CrispCache", function () {
                 defaultExpiresTtl: 500,
                 emitEvents: false
             });
-            crispCache.on('hit', hitSpy);
-            crispCache.on('miss', missSpy);
+            crispCache.on('hit', eventHitSpy);
+            crispCache.on('miss', eventMissSpy);
 
             crispCache.get('hello', function (err, value) {
-                assert.equal(missSpy.callCount, 0);
-                assert.equal(hitSpy.callCount, 0);
+                assert.equal(eventMissSpy.callCount, 0);
+                assert.equal(eventHitSpy.callCount, 0);
                 crispCache.get('hello', function (err, value) {
-                    assert.equal(missSpy.callCount, 0);
-                    assert.equal(hitSpy.callCount, 0);
+                    assert.equal(eventMissSpy.callCount, 0);
+                    assert.equal(eventHitSpy.callCount, 0);
                     done();
                 });
             });
@@ -536,6 +565,34 @@ describe("CrispCache", function () {
                     done();
                 });
         });
+
+        it("Should emit events with stale check", function (done) {
+            var simpleReturn = function(arg) {
+                return arg;
+            };
+            var staleCheckSpy = sinon.spy(simpleReturn);
+            crispCacheBasic.on('staleCheck', staleCheckSpy);
+            var staleCheckDoneSpy = sinon.spy(simpleReturn);
+            crispCacheBasic.on('staleCheckDone', staleCheckDoneSpy);
+
+            async.waterfall([
+                    function (callback) {
+                        crispCacheBasic.get('hello', callback);
+                        clock.tick(10);
+                    },
+                    function (value, callback) {
+                        assert.equal(value, 'world');
+                        clock.tick(401);
+                        callback();
+                    }
+                ],
+                function (err, value) {
+                    assert.equal(staleCheckSpy.callCount, 4);
+                    assert.equal(staleCheckDoneSpy.callCount, 4);
+                    assert.ok(staleCheckDoneSpy.returned(['hello']))
+                    done();
+                });
+        });
     });
 
     var delSpy;
@@ -587,6 +644,33 @@ describe("CrispCache", function () {
                 function (err, value) {
                     assert.equal(err, null);
                     assert.equal(value, undefined);
+                    done();
+                });
+        });
+
+        it("Should emit expire events with evict check", function (done) {
+            var simpleReturn = function(arg) {
+                return arg;
+            };
+            var evictCheckSpy = sinon.spy(simpleReturn);
+            crispCacheBasic.on('evictCheck', evictCheckSpy);
+            var evictCheckDoneSpy = sinon.spy(simpleReturn);
+            crispCacheBasic.on('evictCheckDone', evictCheckDoneSpy);
+            async.waterfall([
+                    function (callback) {
+                        crispCacheBasic.get('hello', callback);
+                        clock.tick(10);
+                    },
+                    function (value, callback) {
+                        assert.equal(value, 'world');
+                        clock.tick(601);
+                        callback();
+                    }
+                ],
+                function (err, value) {
+                    assert.equal(evictCheckSpy.callCount, 6);
+                    assert.equal(evictCheckDoneSpy.callCount, 6);
+                    assert.ok(evictCheckDoneSpy.returned({"hello":{"value":"world","staleTtl":300,"expiresTtl":500,"created":1,"size":null}}));
                     done();
                 });
         });
