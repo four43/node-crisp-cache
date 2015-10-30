@@ -7,6 +7,11 @@ describe("LRU", function () {
     var delSpy = null,
         lru = null;
 
+    it("Sanity Check", function() {
+        lru = new Lru();
+        assert.ok(lru instanceof Lru);
+    });
+
     beforeEach(function () {
         delSpy = sinon.spy(function (key) {
         });
@@ -200,6 +205,35 @@ describe("LRU", function () {
                 assert.equal(lru.size, 5);
             });
         })
+    });
+
+    describe("Del", function() {
+        it("Should remove an entry", function() {
+            lru.put('a', 1);
+            lru.put('b', 1);
+            lru.put('c', 1);
+            lru.del('b');
+            assert.equal(lru.head.key, 'c');
+            assert.equal(delSpy.callCount, 1);
+        });
+
+        it("Should remove the head entry", function() {
+            lru.put('a', 1);
+            lru.put('b', 1);
+            lru.put('c', 1);
+            lru.del('c');
+            assert.equal(lru.head.key, 'b');
+            assert.equal(delSpy.callCount, 1);
+        });
+
+        it("Should remove the tail entry", function() {
+            lru.put('a', 1);
+            lru.put('b', 1);
+            lru.put('c', 1);
+            lru.del('a');
+            assert.equal(lru.tail.key, 'b');
+            assert.equal(delSpy.callCount, 1);
+        });
     });
 
     describe("Shift", function () {
