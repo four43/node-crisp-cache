@@ -233,11 +233,15 @@ CrispCache.prototype._fetch = function (key, options, callback) {
         }
     }
     if (this._lock(key, callback)) {
+        this._emit('fetch', { key: key });
         this.fetcher(key, function (err, value, fetcherOptions) {
             if (err) {
                 debug("Issue with fetcher, resolving in error");
                 this._resolveLocks(key, undefined, err);
             }
+
+            this._emit('fetchDone', { key: key, value: value, options: fetcherOptions });
+
             debug("Got value: " + value + " from fetcher for key: " + key);
 
             if (fetcherOptions) {

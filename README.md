@@ -106,6 +106,14 @@ Events are emitted by Crisp Cache via the emitEvents creation option, true by de
 | `hit` | The cache is hit | `{ key, entry }` `key` being the requested key, entry is the found cache entry (`entry.value` may be helpful) |
 | `miss` | There is a cache miss | `{ key }` `key` being the requested key |
 
+#### fetch
+When fetch (the function provided to keep the cache up to date, configured at creation) is called internally, Crisp Cache will emit the following:
+
+| Event Name | Fired When | Arguments |
+| ---------- | ---- | --------- |
+| `fetch` | Right before `fetch()` is called | `{ key }` `key` being the requested key |
+| `fetchDone` | Once fetch returns with a value | `{ key, value, options }` `key` being the requested key, `value` the value returned from fetch(), and `options` are the caching options returned. |
+
 ### Dynamic TTLs 
 TTLs can be set on a per-item basis in the fetch() callable provided to Crisp Cache.
 
