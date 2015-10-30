@@ -1,5 +1,6 @@
 var assert = require('assert'),
     async = require('async'),
+    CacheEntry = require('../lib/CacheEntry'),
     CrispCache = require('../main'),
     seed = require('seed-random'),
     sinon = require('sinon');
@@ -305,6 +306,21 @@ describe("CrispCache", function () {
                 crispCache.get('hello', function (err, value) {
                     assert.equal(missSpy.callCount, 1);
                     assert.equal(hitSpy.callCount, 1);
+                    done();
+                });
+            });
+        });
+
+        it("Should emit events with correct values", function (done) {
+            crispCache.get('hello', function (err, value) {
+                assert.equal(missSpy.callCount, 1);
+                assert.ok(missSpy.returned({ key: 'hello' }));
+                assert.equal(hitSpy.callCount, 0);
+                crispCache.get('hello', function (err, value) {
+                    assert.equal(missSpy.callCount, 1);
+                    assert.equal(hitSpy.callCount, 1);
+                    assert.ok(hitSpy.lastCall.returnValue.entry instanceof CacheEntry);
+                    assert.equal(hitSpy.lastCall.returnValue.entry.value, 'world');
                     done();
                 });
             });
