@@ -118,6 +118,23 @@ When fetch (the function provided to keep the cache up to date, configured at cr
 | `fetch` | Right before `fetch()` is called | `{ key }` `key` being the requested key |
 | `fetchDone` | Once fetch returns with a value | `{ key, value, options }` `key` being the requested key, `value` the value returned from fetch(), and `options` are the caching options returned. |
 
+#### staleCheck
+When the stale check is called (on the configured interval) the following events will be emitted:
+
+| Event Name | Fired When | Arguments |
+| ---------- | ---- | --------- |
+| `staleCheck` | Right before stale check loop is called | none |
+| `staleCheckDone` | After the stale check is complete | `[ key0, key1, etc. ]` array of keys that were sent to the fetcher to be refetched. |
+
+#### evictCheck
+When the evict check is called (on the configured interval) the following events will be emitted:
+
+| Event Name | Fired When | Arguments |
+| ---------- | ---- | --------- |
+| `evictCheck` | Right before evict check loop is called | none |
+| `evictCheckDone` | After the evict check is complete | `{ key: cacheObj, key2: cacheObj, etc. }` a cache like object of keys and cache objects that were evicted from the cache. |
+
+
 ### Dynamic TTLs 
 TTLs can be set on a per-item basis in the fetch() callable provided to Crisp Cache.
 

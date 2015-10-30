@@ -54,6 +54,12 @@ util.inherits(CrispCache, EventEmitter);
 
 CrispCache.EVENT_HIT = 'hit';
 CrispCache.EVENT_MISS = 'miss';
+CrispCache.EVENT_FETCH = 'fetch';
+CrispCache.EVENT_FETCH_DONE = 'fetchDone';
+CrispCache.EVENT_STALE_CHECK = 'staleCheck';
+CrispCache.EVENT_STALE_CHECK_DONE = 'staleCheckDone';
+CrispCache.EVENT_EVICT_CHECK = 'evictCheck';
+CrispCache.EVENT_EVICT_CHECK_DONE = 'evictCheckDone';
 
 /**
  *
@@ -233,14 +239,14 @@ CrispCache.prototype._fetch = function (key, options, callback) {
         }
     }
     if (this._lock(key, callback)) {
-        this._emit('fetch', { key: key });
+        this._emit(CrispCache.EVENT_FETCH, { key: key });
         this.fetcher(key, function (err, value, fetcherOptions) {
             if (err) {
                 debug("Issue with fetcher, resolving in error");
                 this._resolveLocks(key, undefined, err);
             }
 
-            this._emit('fetchDone', { key: key, value: value, options: fetcherOptions });
+            this._emit(CrispCache.EVENT_FETCH_DONE, { key: key, value: value, options: fetcherOptions });
 
             debug("Got value: " + value + " from fetcher for key: " + key);
 
@@ -273,7 +279,9 @@ CrispCache.prototype._fetch = function (key, options, callback) {
 CrispCache.prototype._staleCheck = function () {
     //This is a little gross for efficiency, this.cache will just have basic keys on it, no need to double check.
     debug("Checking for stale cache entries...");
-    var cacheEntry;
+    this._emit(CrispCache.EVENT_STALE_CHECK);
+    var cacheEntry,
+        refetchKeys = [];
     for (var key in this.cache) {
         cacheEntry = this.cache[key];
         if (cacheEntry.isStale()) {
@@ -282,8 +290,12 @@ CrispCache.prototype._staleCheck = function () {
                 staleTtl: cacheEntry.staleTtl,
                 expiresTtl: cacheEntry.expiresTtl
             });
+            if(this.emitEvents) {
+                refetchKeys.push(key);
+            }
         }
     }
+    this._emit(CrispCache.EVENT_STALE_CHECK_DONE, refetchKeys);
 };
 
 /**
@@ -294,13 +306,22 @@ CrispCache.prototype._staleCheck = function () {
  */
 CrispCache.prototype._evictCheck = function () {
     //This is a little gross for efficiency, this.cache will just have basic keys on it, no need to double check.
-    var cacheEntry;
+
+    this._emit(CrispCache.EVENT_EVICT_CHECK);
+
+    var cacheEntry,
+        evicted = {};
     for (var key in this.cache) {
         cacheEntry = this.cache[key];
         if (cacheEntry.isExpired()) {
             this.del(key);
+            if(this.emitEvents) {
+                evicted[key] = cacheEntry;
+            }
         }
     }
+
+    this._emit(CrispCache.EVENT_EVICT_CHECK_DONE, evicted);
 };
 
 /**
