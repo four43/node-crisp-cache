@@ -11,6 +11,10 @@ to a cache entry - Valid, [Stale], and Expired. This allows the program to ask f
 the cache. If the data is stale, the cache will return the stale data, but asynchronously re-fetch data to ensure data stays 
 available. A locking mechanism is also provided so when a cache misses, data will only be retrieved once.
 
+__This project sponsored in part by:__
+
+[![AerisWeather](http://branding.aerisweather.com/logo-dark-small.png)](http://www.aerisweather.com) - Empowering the next generation, [aerisweather.com](https://www.aerisweather.com)
+
 ## Example
 ```javascript
 var CrispCache = require('crisp-cache');
