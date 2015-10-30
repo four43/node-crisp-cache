@@ -185,7 +185,6 @@ describe("CrispCache", function () {
                     },
                     function (callback) {
                         crispCacheBasic.get('hello', callback);
-                        clock.tick(1000);
                     }
                 ],
                 function (err, results) {
@@ -195,6 +194,7 @@ describe("CrispCache", function () {
                     assert.equal(fetcherSpy.callCount, 1);
                     done();
                 });
+            clock.tick(10);
         });
 
         it("Should propagate the error from the fetcher", function (done) {
@@ -332,6 +332,27 @@ describe("CrispCache", function () {
                 assert.equal(hitSpy.callCount, 0);
                 crispCache.get('hello', {forceFetch: true}, function (err, value) {
                     assert.equal(missSpy.callCount, 2);
+                    assert.equal(hitSpy.callCount, 0);
+                    done();
+                });
+            });
+        });
+
+        it("Should not emit with events turned off", function (done) {
+            crispCache = new CrispCache({
+                fetcher: fetcher,
+                defaultStaleTtl: 300,
+                defaultExpiresTtl: 500,
+                emitEvents: false
+            });
+            crispCache.on('hit', hitSpy);
+            crispCache.on('miss', missSpy);
+
+            crispCache.get('hello', function (err, value) {
+                assert.equal(missSpy.callCount, 0);
+                assert.equal(hitSpy.callCount, 0);
+                crispCache.get('hello', function (err, value) {
+                    assert.equal(missSpy.callCount, 0);
                     assert.equal(hitSpy.callCount, 0);
                     done();
                 });

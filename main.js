@@ -232,37 +232,32 @@ CrispCache.prototype._fetch = function (key, options, callback) {
             debug('Fetched ' + key + ': ' + value);
         }
     }
-    if (this.locks[key]) {
-        //We are locked (already fetching) currently.
-        return this.locks[key].push(callback);
+    if (this._lock(key, callback)) {
+        this.fetcher(key, function (err, value, fetcherOptions) {
+            if (err) {
+                debug("Issue with fetcher, resolving in error");
+                this._resolveLocks(key, undefined, err);
+            }
+            debug("Got value: " + value + " from fetcher for key: " + key);
+
+            if (fetcherOptions) {
+                var staleTtl = fetcherOptions.staleTtl,
+                    expiresTtl = fetcherOptions.expiresTtl,
+                    size = fetcherOptions.size;
+
+                if (staleTtl !== undefined) {
+                    options.staleTtl = staleTtl;
+                }
+                if (expiresTtl !== undefined) {
+                    options.expiresTtl = expiresTtl;
+                }
+                if (size !== undefined) {
+                    options.size = size;
+                }
+            }
+            this.set(key, value, options);
+        }.bind(this));
     }
-    //Not locked, lock and fetch
-    this._lock(key, callback);
-
-    this.fetcher(key, function (err, value, fetcherOptions) {
-        if (err) {
-            debug("Issue with fetcher, resolving in error");
-            this._resolveLocks(key, undefined, err);
-        }
-        debug("Got value: " + value + " from fetcher for key: " + key);
-
-        if (fetcherOptions) {
-            var staleTtl = fetcherOptions.staleTtl,
-                expiresTtl = fetcherOptions.expiresTtl,
-                size = fetcherOptions.size;
-
-            if (staleTtl !== undefined) {
-                options.staleTtl = staleTtl;
-            }
-            if (expiresTtl !== undefined) {
-                options.expiresTtl = expiresTtl;
-            }
-            if (size !== undefined) {
-                options.size = size;
-            }
-        }
-        this.set(key, value, options);
-    }.bind(this));
 };
 
 /**
@@ -310,14 +305,17 @@ CrispCache.prototype._evictCheck = function () {
  * Adds a callback to the locks for this key.
  * @param {string} key
  * @param {valueCb} callbackToAdd
+ * @return {bool} Whether we were able to acquire the lock or not.
  * @private
  */
 CrispCache.prototype._lock = function (key, callbackToAdd) {
     if (this.locks[key] === undefined) {
         this.locks[key] = [callbackToAdd];
+        return true;
     }
     else {
         this.locks[key].push(callbackToAdd);
+        return false;
     }
 };
 
