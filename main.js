@@ -1,6 +1,9 @@
 var CacheEntry = require('./lib/CacheEntry'),
     debug = require('debug')('crisp-cache'),
-    Lru = null;
+    EventEmitter = require('events'),
+    Lru = null,
+    util = require('util');
+
 /**
  *
  * @param options
@@ -44,7 +47,13 @@ function CrispCache(options) {
 
     this.cache = {};
     this.locks = {};
+
+    this.emitEvents = options.emitEvents !== undefined ? options.emitEvents : true;
 }
+util.inherits(CrispCache, EventEmitter);
+
+CrispCache.EVENT_HIT = 'hit';
+CrispCache.EVENT_MISS = 'miss';
 
 /**
  *
@@ -64,6 +73,9 @@ CrispCache.prototype.get = function (key, options, callback) {
     if (this.cache[key] === undefined || options.forceFetch) {
         //Cache miss.
         debug("- MISS");
+
+		this._emit(CrispCache.EVENT_MISS, { key: key });
+
         if (options.skipFetch) {
             debug(" - Skipping fetch, returning undefined");
             return callback(null, undefined);
@@ -78,6 +90,8 @@ CrispCache.prototype.get = function (key, options, callback) {
         //Cache hit, what is the state?
         debug("- Hit");
         var cacheEntry = this.cache[key];
+
+		this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
 
         if (cacheEntry.isValid()) {
             if (this._lru) {
@@ -218,37 +232,32 @@ CrispCache.prototype._fetch = function (key, options, callback) {
             debug('Fetched ' + key + ': ' + value);
         }
     }
-    if (this.locks[key]) {
-        //We are locked (already fetching) currently.
-        return this.locks[key].push(callback);
+    if (this._lock(key, callback)) {
+        this.fetcher(key, function (err, value, fetcherOptions) {
+            if (err) {
+                debug("Issue with fetcher, resolving in error");
+                this._resolveLocks(key, undefined, err);
+            }
+            debug("Got value: " + value + " from fetcher for key: " + key);
+
+            if (fetcherOptions) {
+                var staleTtl = fetcherOptions.staleTtl,
+                    expiresTtl = fetcherOptions.expiresTtl,
+                    size = fetcherOptions.size;
+
+                if (staleTtl !== undefined) {
+                    options.staleTtl = staleTtl;
+                }
+                if (expiresTtl !== undefined) {
+                    options.expiresTtl = expiresTtl;
+                }
+                if (size !== undefined) {
+                    options.size = size;
+                }
+            }
+            this.set(key, value, options);
+        }.bind(this));
     }
-    //Not locked, lock and fetch
-    this._lock(key, callback);
-
-    this.fetcher(key, function (err, value, fetcherOptions) {
-        if (err) {
-            debug("Issue with fetcher, resolving in error");
-            this._resolveLocks(key, undefined, err);
-        }
-        debug("Got value: " + value + " from fetcher for key: " + key);
-
-        if (fetcherOptions) {
-            var staleTtl = fetcherOptions.staleTtl,
-                expiresTtl = fetcherOptions.expiresTtl,
-                size = fetcherOptions.size;
-
-            if (staleTtl !== undefined) {
-                options.staleTtl = staleTtl;
-            }
-            if (expiresTtl !== undefined) {
-                options.expiresTtl = expiresTtl;
-            }
-            if (size !== undefined) {
-                options.size = size;
-            }
-        }
-        this.set(key, value, options);
-    }.bind(this));
 };
 
 /**
@@ -296,14 +305,17 @@ CrispCache.prototype._evictCheck = function () {
  * Adds a callback to the locks for this key.
  * @param {string} key
  * @param {valueCb} callbackToAdd
+ * @return {bool} Whether we were able to acquire the lock or not.
  * @private
  */
 CrispCache.prototype._lock = function (key, callbackToAdd) {
     if (this.locks[key] === undefined) {
         this.locks[key] = [callbackToAdd];
+        return true;
     }
     else {
         this.locks[key].push(callbackToAdd);
+        return false;
     }
 };
 
@@ -354,6 +366,12 @@ CrispCache.prototype._getDefaultExpiresTtl = function () {
     else {
         return this.defaultExpiresTtl
     }
+};
+
+CrispCache.prototype._emit = function(name, options) {
+	if(this.emitEvents) {
+		this.emit(name, options);
+	}
 };
 
 /**

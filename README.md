@@ -67,6 +67,7 @@ Crisp Cache is instantiated because it holds config for many of it's methods.
 | `evictCheckInterval` | (integer, ms) | `0` | If >0, will check for expired cache entries and delete them from the cache |
 | `ttlVariance` | (integer, ms) | `0` | (Alias for other variance options) How many ms to vary the staleTtl and expiresTtl (+/-, to prevent cache slams) |
 | `maxSize` | (integer) | `null` | Adds a max size for the cache, when elements are added a size is needed. When the cache gets too big LRU purging occurs.[2] |
+| `emitEvents` | (boolean) | `true` | Enable event emission, see 'Event' section |
 
 **Notes:** 
 
@@ -95,6 +96,15 @@ Set a value to the cache. Will call `callback` (an error first callback) with a 
 Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
 
 ## Advanced Usage
+
+### Events
+Events are emitted by Crisp Cache via the emitEvents creation option, true by default. The following method emit events: 
+
+#### get
+| Event Name | Fired When | Arguments |
+| ---------- | ---- | --------- |
+| `hit` | The cache is hit | `{ key, entry }` `key` being the requested key, entry is the found cache entry (`entry.value` may be helpful) |
+| `miss` | There is a cache miss | `{ key }` `key` being the requested key |
 
 ### Dynamic TTLs 
 TTLs can be set on a per-item basis in the fetch() callable provided to Crisp Cache.
