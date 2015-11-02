@@ -399,6 +399,75 @@ CrispCache.prototype._emit = function(name, options) {
 	}
 };
 
+// Unique id for key-less CrispCache.wrap
+var keyIdCounter = 0;
+/**
+ * Create a cached version of an asynchronous function.
+ *
+ * @param {valueCb} origFn
+ * @param {Object} options
+ * @param {function(any*):string?} options.createKey
+ * @param {function(string):any[]} options.parseKey
+ * @returns {valueCb}
+ */
+CrispCache.wrap = function(origFn, options) {
+    var cache;
+    options || (options = {});
+
+    // Use a static key, eg. for cached functions
+    // which receive no arguments
+    if (!options.createKey) {
+        keyIdCounter++;
+        var key = 'CRISP_CACHE_KEY_' + keyIdCounter
+        // Cache has a single entry, with a single constant key
+        options.createKey = function() { return key; }
+        // OrigFn receives no arguments (besides cb)
+        options.parseKey = function(key) { return []; }
+    }
+
+    options.fetcher = function(key, cb) {
+        var args, wrapperCb;
+        try {
+            args = options.parseKey(key);
+        }
+        catch (err) { cb(new Error('Failed to parse cache key: ' + key)); }
+
+        if (!Array.isArray(args)) {
+            return cb(new Error('CrispCache.wrap `parseKey` must return an array of arguments'));
+        }
+
+        // Wrap the original fn's callback,
+        // to send back cacheOptions along with the resolved value
+        wrapperCb = function(err, val) {
+            if (err) { return cb(err); }
+
+            try {
+                var cacheOptions = options.getOptions ? options.getOptions(val, args) : {};
+            }
+            catch (err) { return cb(err); }
+
+            cb(null, val, cacheOptions);
+        }
+
+        origFn.apply(null, args.concat(wrapperCb));
+    };
+
+
+    cache = new CrispCache(options)
+
+    return function() {
+        var args = Array.prototype.slice.call(arguments, 0);
+        var cb = args.pop();
+        var key = options.createKey.apply(null, args);
+
+        if (Object.prototype.toString.call(key) !== '[object String]') {
+            return cb(new Error('Failed to create cache key'));
+        }
+
+        cache.get(key, cb);
+    }
+};
+
 /**
  * @callback valueCb
  * @param {Error|null} error

@@ -804,4 +804,169 @@ describe("CrispCache", function () {
         });
 
     });
+
+    describe('wrap', function() {
+
+        it('should wrap a function in cache, with user-defined cache keys', function() {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(a, b, c) { return [a, b, c].join('__'); },
+                parseKey: function(key) { return key.split('__'); }
+            });
+            var cb = sinon.spy(function(err, res) {
+                assert.ifError(err);
+                assert.deepEqual(res, 'RETURN VAL', 'Cached function should resolve the same as underlying function');
+            });
+
+            // Should hit orig
+            cached('a', 'b', 'c', cb);
+            // Should hit cache
+            cached('a', 'b', 'c', cb);
+            // Should hit orig again
+            cached('x', 'y', 'z', cb);
+            
+            assert.equal(orig.callCount, 2, 'Cached entry should invoke the original function once for each unique key');
+            assert(orig.calledWith('a', 'b', 'c'), 'Should call orig with parsed key (call 1)');
+            assert(orig.calledWith('x', 'y', 'z'), 'Should call orig with parsed key (call 2)');
+            assert.equal(cb.callCount, 3, 'Should invoke callback passed to the cached function');
+        });
+
+        it('should complain if createKey does not return a string', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(opts) { return opts; },
+                parseKey: function(key) { return key.split('__'); }
+            });
+
+            cached({ foo: 'bar' }, function(err, val) {
+                assert(err instanceof Error, 'should throw an error');
+                done();
+            });
+        });
+
+        it('should complain if parseKey does not return an array', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(x) { return x; },
+                parseKey: function(key) { return key; }
+            });
+
+            cached('foo', function(err, val) {
+                assert(err instanceof Error, 'should throw an error');
+                done();
+            });
+        });
+
+        it('should complain if parseKey throws an error', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(x) { return x; },
+                parseKey: function(key) { throw new Error(); }
+            });
+
+            cached('foo', function(err, val) {
+                assert(err instanceof Error, 'should throw an error');
+                done();
+            });
+        });
+
+        it('should work with functions with no args', function() {
+            var orig = sinon.spy(function(cb) { cb(null, 'RETURN VAL'); }), getOptions;
+            var cached = CrispCache.wrap(orig);
+            var cb = sinon.spy(function(err, res) {
+                assert.ifError(err);
+                assert.deepEqual(res, 'RETURN VAL', 'Cached function should resolve the same as underlying function');
+            });
+
+            // Should hit orig
+            cached(cb);
+            // Should hit cache
+            cached(cb);
+
+            assert.equal(orig.callCount, 1, 'Cached entry should invoke the original function only once');
+            assert.equal(cb.callCount, 2, 'Should invoke callback passed to the cached function');
+        });
+        
+        it('should accept CrispCache options', function() {
+            clock = sinon.useFakeTimers();
+            var orig = sinon.spy(function(x, cb) { cb(null, 'RETURN VAL'); });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(x) { return x; },
+                parseKey: function(x) { return [x]; },
+                defaultExpiresTtl: 100
+            });
+
+            // Should accept all CrispCache options,
+            // but I don't want to re-test basic caching behavior,
+            // so I'm just testing expiresTtl
+            cached('foo', assert.ifError);
+            assert.deepEqual(orig.callCount, 1, 'Should invoke orig on first call')
+
+            clock.tick(50);
+            cached('foo', assert.ifError);
+            assert.deepEqual(orig.callCount, 1, 'Should not invoke orig before expiresTtl is up')
+
+            clock.tick(51);
+            cached('foo', assert.ifError);
+            assert.deepEqual(orig.callCount, 2, 'Should invoke orig after expiresTtl is up');
+        });
+
+        it('should set cache entry options', function() {
+            clock = sinon.useFakeTimers();
+            var orig = sinon.spy(function(x, cb) { cb(null, 'RETURN VAL'); }), getOptions;
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(x) { return x; },
+                parseKey: function(x) { return [x]; },
+                getOptions: getOptions = sinon.spy(function(res, args) {
+                    assert.deepEqual(res, 'RETURN VAL', 'getOptions should receive the resolved value');
+                    assert.deepEqual(args[0], 'foo', 'getOptions should receive array of call arguments');
+                    assert.deepEqual(args.length, 1, 'getOptions should receive array of call arguments (correct length)');
+
+                    return {
+                        expiresTtl: 100
+                    };
+                })
+            });
+
+            // Should accept all CrispCache options,
+            // but I don't want to re-test basic caching behavior,
+            // so I'm just testing expiresTtl
+            cached('foo', assert.ifError);
+            assert.deepEqual(orig.callCount, 1, 'Should invoke orig on first call')
+
+            clock.tick(50);
+            cached('foo', assert.ifError);
+            assert.deepEqual(orig.callCount, 1, 'Should not invoke orig before expiresTtl is up')
+
+            clock.tick(51);
+            cached('foo', assert.ifError);
+            assert.deepEqual(orig.callCount, 2, 'Should invoke orig after expiresTtl is up');
+
+            assert.deepEqual(getOptions.callCount, 2, 'getOptions should be called once for every result');
+        });
+
+        it(' should complain if `getOptions` throws an error', function(done) {
+            var cached = CrispCache.wrap(function(x, cb) { cb(null, 'foo') }, {
+                createKey: function(x) { return x; },
+                parseKey: function(x) { return [x]; },
+                getOptions: function(res, args) {
+                    throw new Error();
+                }
+            });
+
+            cached('foo', function(err, val) {
+                assert(err instanceof Error);
+                done();
+            });
+        });
+        
+    });
 });
