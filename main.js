@@ -412,9 +412,7 @@ var keyIdCounter = 0;
  */
 CrispCache.wrap = function(origFn, options) {
     var cache;
-
-    // Create a clone of options, for use to mutate
-    options = Object.assign({}, options);
+    options || (options = {});
 
     // Use a static key, eg. for cached functions
     // which receive no arguments
@@ -432,10 +430,10 @@ CrispCache.wrap = function(origFn, options) {
         try {
             args = options.parseKey(key);
         }
-        catch (err) { throw new Error('Failed to parse cache key: ' + key)}
+        catch (err) { cb(new Error('Failed to parse cache key: ' + key)); }
 
         if (!Array.isArray(args)) {
-            throw new Error('CrispCache.wrap `parseKey` must return an array of arguments');
+            return cb(new Error('CrispCache.wrap `parseKey` must return an array of arguments'));
         }
 
         // Wrap the original fn's callback,
@@ -463,7 +461,7 @@ CrispCache.wrap = function(origFn, options) {
         var key = options.createKey.apply(null, args);
 
         if (Object.prototype.toString.call(key) !== '[object String]') {
-            throw new Error('Failed to create cache key');
+            return cb(new Error('Failed to create cache key'));
         }
 
         cache.get(key, cb);

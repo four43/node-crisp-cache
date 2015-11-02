@@ -833,6 +833,51 @@ describe("CrispCache", function () {
             assert.equal(cb.callCount, 3, 'Should invoke callback passed to the cached function');
         });
 
+        it('should complain if createKey does not return a string', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(opts) { return opts; },
+                parseKey: function(key) { return key.split('__'); }
+            });
+
+            cached({ foo: 'bar' }, function(err, val) {
+                assert(err instanceof Error, 'should throw an error');
+                done();
+            });
+        });
+
+        it('should complain if parseKey does not return an array', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(x) { return x; },
+                parseKey: function(key) { return key; }
+            });
+
+            cached('foo', function(err, val) {
+                assert(err instanceof Error, 'should throw an error');
+                done();
+            });
+        });
+
+        it('should complain if parseKey throws an error', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(x) { return x; },
+                parseKey: function(key) { throw new Error(); }
+            });
+
+            cached('foo', function(err, val) {
+                assert(err instanceof Error, 'should throw an error');
+                done();
+            });
+        });
+
         it('should work with functions with no args', function() {
             var orig = sinon.spy(function(cb) { cb(null, 'RETURN VAL'); }), getOptions;
             var cached = CrispCache.wrap(orig);
@@ -906,6 +951,21 @@ describe("CrispCache", function () {
             assert.deepEqual(orig.callCount, 2, 'Should invoke orig after expiresTtl is up');
 
             assert.deepEqual(getOptions.callCount, 2, 'getOptions should be called once for every result');
+        });
+
+        it(' should complain if `getOptions` throws an error', function(done) {
+            var cached = CrispCache.wrap(function(x, cb) { cb(null, 'foo') }, {
+                createKey: function(x) { return x; },
+                parseKey: function(x) { return [x]; },
+                getOptions: function(res, args) {
+                    throw new Error();
+                }
+            });
+
+            cached('foo', function(err, val) {
+                assert(err instanceof Error);
+                done();
+            });
         });
         
     });
