@@ -120,7 +120,7 @@ var cachedReadFile = Cache.wrap(fs.readFile, {
   // Update cache entry options, based on the cached value, 
   // and the original function arguments.
   // Accepts all of the same options as CrispCache#set()
-  getOptions: (data, args) {
+  getOptions: function(data, args) {
 	  return {
 		  size: data.length,
 		  expiresTtl: new RegExp('/tmp').test(args[0]) ? 0 : 1000 * 60
