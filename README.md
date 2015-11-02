@@ -99,6 +99,54 @@ Set a value to the cache. Will call `callback` (an error first callback) with a 
 ### del(key, [callback])
 Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
 
+
+### CrispCache.wrap(originalFn, [options])
+
+Wraps an asynchronous function in a CrispCache cache. This allows you to easily create cached versions of functions, which implement the same interface as the original functions.
+
+For example:
+
+```js
+var cachedReadFile = Cache.wrap(fs.readFile, {
+  // Create a cache key from the original function arguments
+  createKey: function(filePath, options) {
+	  return [filePath, encoding].join('__');
+  }),
+  // Convert your cache key back to an array of arguments
+  // to pass to the original function
+  parseKey: function(key) {
+	  return key.split('__');
+  },
+  // Update cache entry options, based on the cached value, 
+  // and the original function arguments.
+  // Accepts all of the same options as CrispCache#set()
+  getOptions: (data, args) {
+	  return {
+		  size: data.length,
+		  expiresTtl: new RegExp('/tmp').test(args[0]) ? 0 : 1000 * 60
+	  };
+  },
+  // Accepts all of the same options as `new CrispCache`
+  defaultExpiresTtl: 1000 * 60,
+  maxSize: 1024 * 1024 * 5
+});
+
+// cachedReadFile has the same signature as `fs.readFile`
+cachedReadFile('/path/to/file', 'utf8', function(err, contents) {
+  // contents are now cached
+
+  // Calling the cached function again will return the cached value
+  cachedReadFile('/path/to/file', 'utf8', /*... */)
+});
+```
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| createKey | Function | If omitted, a static key will be used for all calls to the cached function  | Create a unique cache key using the function arguments.
+| parseKey | Function | Not required if `createKey` is omitted (in which case, the original function will receive no arguments besides callback). | Convert a cache key into an array of function arguments. This should be the inverse of `createKey` (`parseKey(createKey(key)) === key`).
+| ... | | | All options accepted by the `CrispCache` constructor are also accepted by `CrispCache.wrap`. See `new CrispCache()` documentation. 
+
+
 ## Advanced Usage
 
 ### Events
