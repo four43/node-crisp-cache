@@ -469,6 +469,54 @@ describe("CrispCache", function () {
                 });
             })
         });
+
+        // PASSES
+        it("Should expire cached value with a TTL of 0", function (done) {
+            var fetcher;
+            var cache = new CrispCache({
+                fetcher: fetcher = sinon.spy(function(key, cb) {
+                    cb(null, 'cached value', {
+                        expiresTtl: 0
+                    });
+                }),
+                defaultExpiresTtl: 1000
+            });
+
+            cache.get('foo', function(err, val) {
+                assert.ifError(err);
+                assert.deepEqual(fetcher.callCount, 1, 'Should have hit cache for first request');
+
+                cache.get('foo', function(err, val) {
+                    assert.ifError(err);
+                    assert.deepEqual(fetcher.callCount, 2, 'Should have hit cache again, because ttl was set to 0');
+                    done();
+                });
+            });
+        });
+
+        // FAILS
+        it("Should expire cached value with a negative TTL", function (done) {
+            var fetcher;
+            var cache = new CrispCache({
+                fetcher: fetcher = sinon.spy(function(key, cb) {
+                    cb(null, 'cached value', {
+                        expiresTtl: -100
+                    });
+                }),
+                defaultExpiresTtl: 1000
+            });
+
+            cache.get('foo', function(err, val) {
+                assert.ifError(err);
+                assert.deepEqual(fetcher.callCount, 1, 'Should have hit cache for first request');
+
+                cache.get('foo', function(err, val) {
+                    assert.ifError(err);
+                    assert.deepEqual(fetcher.callCount, 2, 'Should have hit cache again, because ttl was set to negative');
+                    done();
+                });
+            });
+        });
     });
 
     describe("Del - Basic", function () {
@@ -813,7 +861,8 @@ describe("CrispCache", function () {
             });
             var cached = CrispCache.wrap(orig, {
                 createKey: function(a, b, c) { return [a, b, c].join('__'); },
-                parseKey: function(key) { return key.split('__'); }
+                parseKey: function(key) { return key.split('__'); },
+                defaultExpiresTtl: 1000
             });
             var cb = sinon.spy(function(err, res) {
                 assert.ifError(err);
@@ -880,7 +929,9 @@ describe("CrispCache", function () {
 
         it('should work with functions with no args', function() {
             var orig = sinon.spy(function(cb) { cb(null, 'RETURN VAL'); }), getOptions;
-            var cached = CrispCache.wrap(orig);
+            var cached = CrispCache.wrap(orig, {
+                defaultExpiresTtl: 1000
+            });
             var cb = sinon.spy(function(err, res) {
                 assert.ifError(err);
                 assert.deepEqual(res, 'RETURN VAL', 'Cached function should resolve the same as underlying function');

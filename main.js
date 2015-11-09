@@ -29,7 +29,7 @@ function CrispCache(options) {
     }
 
     // Expires Control
-    this.defaultExpiresTtl = options.defaultExpiresTtl;
+    this.defaultExpiresTtl = options.defaultExpiresTtl || 0;
     this.expiresTtlVariance = options.expiresTtlVariance || options.ttlVariance || 0;
     this.evictCheckInterval = options.evictCheckInterval || 0;
     if (this.evictCheckInterval && this.evictCheckInterval > 0) {
@@ -172,7 +172,7 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         return callback(new Error(errStr));
     }
 
-    if (expiresTtl !== 0) {
+    if (expiresTtl > 0) {
         var cacheEntry = new CacheEntry({
             value: value,
             staleTtl: staleTtl,
