@@ -54,6 +54,9 @@ crispCacheBasic.get('foo', {skipFetch: true}, function (err, value) {
     }
 });
 ```
+## Mentions
+
+* [AerisWeather Blog - Is Your Cache Crispy Fresh? ](http://www.aerisweather.com/blog/is-your-cache-crispy-fresh/)
 
 ## Usage
 
