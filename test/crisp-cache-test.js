@@ -882,6 +882,47 @@ describe("CrispCache", function () {
             assert.equal(cb.callCount, 3, 'Should invoke callback passed to the cached function');
         });
 
+        it('should wrap a function and bind events', function() {
+            var orig = function(a, cb) {
+                cb(null, 'RETURN VAL');
+            };
+            var fetchCb = sinon.spy(function(fetchInfo) {
+               return "Fetching key: " + fetchInfo.key;
+            });
+            var hitCb = sinon.spy(function(fetchInfo) {
+                return "Hit key: " + fetchInfo.key;
+            });
+            var missCb = sinon.spy(function(fetchInfo) {
+                return "Miss key: " + fetchInfo.key;
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(a) { return a; },
+                parseKey: function(key) { return [key]; },
+                defaultExpiresTtl: 1000,
+                events: {
+                    fetch: fetchCb,
+                    hit: hitCb,
+                    miss: missCb
+                }
+            });
+            var cb = sinon.spy(function(err, res) {
+                assert.ifError(err);
+                assert.deepEqual(res, 'RETURN VAL', 'Cached function should resolve the same as underlying function');
+            });
+
+            // Should hit orig
+            cached('a', cb);
+            // Should hit cache
+            cached('a', cb);
+
+            assert.equal(fetchCb.callCount, 1, 'Should only call the fetch cb once, but should call it');
+            assert.equal(fetchCb.lastCall.returnValue, 'Fetching key: a');
+            assert.equal(hitCb.callCount, 1, 'Should only call the hit cb once, but should call it');
+            assert.equal(hitCb.lastCall.returnValue, 'Hit key: a');
+            assert.equal(missCb.callCount, 1, 'Should only call the miss cb once, but should call it');
+            assert.equal(missCb.lastCall.returnValue, 'Miss key: a');
+        });
+
         it('should complain if createKey does not return a string', function(done) {
             var orig = sinon.spy(function(a, b, c, cb) {
                 cb(null, 'RETURN VAL');

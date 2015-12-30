@@ -418,7 +418,7 @@ CrispCache.wrap = function(origFn, options) {
     // which receive no arguments
     if (!options.createKey) {
         keyIdCounter++;
-        var key = 'CRISP_CACHE_KEY_' + keyIdCounter
+        var key = 'CRISP_CACHE_KEY_' + keyIdCounter;
         // Cache has a single entry, with a single constant key
         options.createKey = function() { return key; }
         // OrigFn receives no arguments (besides cb)
@@ -447,13 +447,22 @@ CrispCache.wrap = function(origFn, options) {
             catch (err) { return cb(err); }
 
             cb(null, val, cacheOptions);
-        }
+        };
 
         origFn.apply(null, args.concat(wrapperCb));
     };
 
 
-    cache = new CrispCache(options)
+    cache = new CrispCache(options);
+
+    //Bind to user supplied events
+    if(options.events) {
+        var eventNames = Object.keys(options.events);
+        eventNames.map(function(eventName) {
+           cache.on(eventName, options.events[eventName]);
+        });
+    }
+
 
     return function() {
         var args = Array.prototype.slice.call(arguments, 0);
