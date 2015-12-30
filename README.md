@@ -145,9 +145,10 @@ cachedReadFile('/path/to/file', 'utf8', function(err, contents) {
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| createKey | Function | If omitted, a static key will be used for all calls to the cached function  | Create a unique cache key using the function arguments.
-| parseKey | Function | Not required if `createKey` is omitted (in which case, the original function will receive no arguments besides callback). | Convert a cache key into an array of function arguments. This should be the inverse of `createKey` (`parseKey(createKey(key)) === key`).
-| ... | | | All options accepted by the `CrispCache` constructor are also accepted by `CrispCache.wrap`. See `new CrispCache()` documentation. 
+| createKey | Function | If omitted, a static key will be used for all calls to the cached function  | Create a unique cache key using the function arguments. |
+| parseKey | Function | Not required if `createKey` is omitted (in which case, the original function will receive no arguments besides callback). | Convert a cache key into an array of function arguments. This should be the inverse of `createKey` (`parseKey(createKey(key)) === key`). See: [Events](#events) |
+| events | Object | null | A list of callbacks for events, keyed by the event name. Ex. `{ fetch: function(fetchInfo) { console.log(fetchInfo.key); } }` will log each key that is fetched from the original data source. |
+| ... | | | All options accepted by the `CrispCache` constructor are also accepted by `CrispCache.wrap`. See `new CrispCache()` documentation.
 
 
 ## Advanced Usage
