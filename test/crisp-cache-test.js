@@ -853,6 +853,48 @@ describe("CrispCache", function () {
 
     });
 
+    describe('Events - General', function() {
+        it('should fire events that are passed via the constructor', function() {
+            var orig = function(a, cb) {
+                cb(null, 'RETURN VAL');
+            };
+            var fetchCb = sinon.spy(function(fetchInfo) {
+                return "Fetching key: " + fetchInfo.key;
+            });
+            var hitCb = sinon.spy(function(fetchInfo) {
+                return "Hit key: " + fetchInfo.key;
+            });
+            var missCb = sinon.spy(function(fetchInfo) {
+                return "Miss key: " + fetchInfo.key;
+            });
+            var crispCache = new CrispCache({
+                fetcher: orig,
+                defaultExpiresTtl: 1000,
+                events: {
+                    fetch: fetchCb,
+                    hit: hitCb,
+                    miss: missCb
+                }
+            });
+            var cb = sinon.spy(function(err, res) {
+                assert.ifError(err);
+                assert.deepEqual(res, 'RETURN VAL', 'Cached function should resolve the same as underlying function');
+            });
+
+            // Should hit orig
+            crispCache.get('a', cb);
+            // Should hit cache
+            crispCache.get('a', cb);
+
+            assert.equal(fetchCb.callCount, 1, 'Should only call the fetch cb once, but should call it');
+            assert.equal(fetchCb.lastCall.returnValue, 'Fetching key: a');
+            assert.equal(hitCb.callCount, 1, 'Should only call the hit cb once, but should call it');
+            assert.equal(hitCb.lastCall.returnValue, 'Hit key: a');
+            assert.equal(missCb.callCount, 1, 'Should only call the miss cb once, but should call it');
+            assert.equal(missCb.lastCall.returnValue, 'Miss key: a');
+        });
+    });
+
     describe('wrap', function() {
 
         it('should wrap a function in cache, with user-defined cache keys', function() {

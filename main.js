@@ -49,6 +49,10 @@ function CrispCache(options) {
     this.locks = {};
 
     this.emitEvents = options.emitEvents !== undefined ? options.emitEvents : true;
+    //Bind to user supplied events
+    if(this.emitEvents && options.events) {
+        bindEventMap(options.events, this);
+    }
 }
 util.inherits(CrispCache, EventEmitter);
 
@@ -64,7 +68,7 @@ CrispCache.EVENT_EVICT_CHECK_DONE = 'evictCheckDone';
 /**
  *
  * @param {string} key
- * @param {{skipFetch:boolean}} options
+ * @param {{skipFetch:boolean}} [options]
  * @param {valueCb} callback
  * @returns {*}
  */
@@ -456,17 +460,7 @@ CrispCache.wrap = function(origFn, options) {
         origFn.apply(null, args.concat(wrapperCb));
     };
 
-
     cache = new CrispCache(options);
-
-    //Bind to user supplied events
-    if(options.events) {
-        var eventNames = Object.keys(options.events);
-        eventNames.map(function(eventName) {
-           cache.on(eventName, options.events[eventName]);
-        });
-    }
-
 
     return function() {
         var args = Array.prototype.slice.call(arguments, 0);
@@ -480,6 +474,18 @@ CrispCache.wrap = function(origFn, options) {
         cache.get(key, cb);
     }
 };
+
+/**
+ * Bind to user supplied event map, where key is event name
+ * @param {{}} eventMap
+ * @param {EventEmitter} eventEmitter
+ */
+function bindEventMap(eventMap, eventEmitter) {
+    var eventNames = Object.keys(eventMap);
+    eventNames.map(function(eventName) {
+        eventEmitter.on(eventName, eventMap[eventName]);
+    });
+}
 
 /**
  * @callback valueCb
