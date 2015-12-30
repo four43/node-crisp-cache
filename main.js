@@ -94,12 +94,12 @@ CrispCache.prototype.get = function (key, options, callback) {
     }
     else {
         //Cache hit, what is the state?
-        debug("- Hit");
         var cacheEntry = this.cache[key];
 
-		this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
-
         if (cacheEntry.isValid()) {
+            debug("- Hit");
+            this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
+
             if (this._lru) {
                 this._lru.put(key, cacheEntry.size);
             }
@@ -107,6 +107,9 @@ CrispCache.prototype.get = function (key, options, callback) {
         }
         else if (cacheEntry.isStale()) {
             //Stale, try and update the cache but return what we have.
+            debug("- Hit, Stale");
+            this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
+
             debug("- Stale, returning current value but re-fetching");
             if (this._lru) {
                 this._lru.put(key, cacheEntry.size);
@@ -118,7 +121,8 @@ CrispCache.prototype.get = function (key, options, callback) {
             });
         }
         else if (cacheEntry.isExpired()) {
-            debug("- Expired");
+            debug("- Hit, but expired");
+            this._emit(CrispCache.EVENT_MISS, { key: key, entry: cacheEntry });
             if (options.skipFetch) {
                 //Don't re-fetch
                 debug(" - Skipping fetch, deleting and returning undefined");
