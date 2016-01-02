@@ -2,6 +2,8 @@
 A crispy fresh cache that will use updated data where it can, but can use a stale entry if need be - useful for high throughput
 applications that want to avoid cache-slams and blocking.
 
+**crisp-cache is now v1.x, tested, and stable.**
+
 Master Build Status: 
 [![Build Status](https://travis-ci.org/four43/node-crisp-cache.svg?branch=master)](https://travis-ci.org/four43/node-crisp-cache)
 [![Coverage Status](https://coveralls.io/repos/four43/node-crisp-cache/badge.svg?branch=master&service=github)](https://coveralls.io/github/four43/node-crisp-cache?branch=master)

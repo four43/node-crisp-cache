@@ -1,6 +1,6 @@
 {
   "name": "crisp-cache",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "fresh",
     "stale",
     "expires",
-    "expired"
+    "expired",
+    ""
   ],
   "author": "Seth Miller <seth@four43.com>",
   "license": "MIT",
