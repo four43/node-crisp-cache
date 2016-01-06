@@ -177,6 +177,50 @@ describe("CrispCache", function () {
             });
         });
 
+        it("Should fetch with a bad fetcher", function (done) {
+            var tries = 0,
+				clock = sinon.useFakeTimers();
+
+            function badFetcher(key, callback) {
+                setTimeout(function () {
+                    tries++;
+                    if(tries > 1) {
+                        return callback(new Error("Fetcher error"));
+                    }
+                    return callback(null, tries);
+                }, 1);
+            }
+            var badFetcherSpy = sinon.spy(badFetcher);
+            var crispCacheBadFetcher = new CrispCache({
+                fetcher: badFetcherSpy,
+                defaultStaleTtl: 300,
+                defaultExpiresTtl: 500
+            });
+
+			crispCacheBadFetcher.get('hello', function (err, value) {
+                assert.equal(err, null);
+                assert.equal(value, 1);
+				clock.tick(400);
+				crispCacheBadFetcher.get('hello', function (err, value) {
+					assert.ifError(err);
+					process.nextTick(function() {
+						assert.equal(badFetcherSpy.callCount, 2);
+						assert.equal(value, 1);
+						clock.tick(50);
+						crispCacheBadFetcher.get('hello', function (err, value) {
+							assert.ifError(err);
+							process.nextTick(function() {
+								assert.equal(badFetcherSpy.callCount, 3);
+								assert.equal(value, 1);
+								done();
+							});
+						});
+					});
+                });
+            });
+			clock.tick(10);
+        });
+
         it("Should only fetch once for 2 cache misses (locking)", function (done) {
             clock = sinon.useFakeTimers();
             async.parallel([
@@ -917,7 +961,7 @@ describe("CrispCache", function () {
             cached('a', 'b', 'c', cb);
             // Should hit orig again
             cached('x', 'y', 'z', cb);
-            
+
             assert.equal(orig.callCount, 2, 'Cached entry should invoke the original function once for each unique key');
             assert(orig.calledWith('a', 'b', 'c'), 'Should call orig with parsed key (call 1)');
             assert(orig.calledWith('x', 'y', 'z'), 'Should call orig with parsed key (call 2)');
@@ -1028,7 +1072,7 @@ describe("CrispCache", function () {
             assert.equal(orig.callCount, 1, 'Cached entry should invoke the original function only once');
             assert.equal(cb.callCount, 2, 'Should invoke callback passed to the cached function');
         });
-        
+
         it('should accept CrispCache options', function() {
             clock = sinon.useFakeTimers();
             var orig = sinon.spy(function(x, cb) { cb(null, 'RETURN VAL'); });
@@ -1101,6 +1145,6 @@ describe("CrispCache", function () {
                 done();
             });
         });
-        
+
     });
 });
