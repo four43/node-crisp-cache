@@ -178,8 +178,8 @@ describe("CrispCache", function () {
         });
 
         it("Should fetch with a bad fetcher", function (done) {
-            var tries = 0,
-				clock = sinon.useFakeTimers();
+            var tries = 0;
+            clock = sinon.useFakeTimers();
 
             function badFetcher(key, callback) {
                 setTimeout(function () {
