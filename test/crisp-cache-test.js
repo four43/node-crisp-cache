@@ -973,7 +973,7 @@ describe("CrispCache", function () {
                 cb(null, 'RETURN VAL');
             };
             var fetchCb = sinon.spy(function(fetchInfo) {
-               return "Fetching key: " + fetchInfo.key;
+                return "Fetching key: " + fetchInfo.key;
             });
             var hitCb = sinon.spy(function(fetchInfo) {
                 return "Hit key: " + fetchInfo.key;
@@ -1144,6 +1144,14 @@ describe("CrispCache", function () {
                 assert(err instanceof Error);
                 done();
             });
+        });
+
+        it('should complain if a wrapped function is called without a callback', function(done) {
+            const cached = CrispCache.wrap(function() {});
+
+            assert.throws(function() { cached() }, /callback/);
+
+            done();
         });
 
     });

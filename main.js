@@ -79,6 +79,9 @@ CrispCache.prototype.get = function (key, options, callback) {
         callback = options;
         options = {};
     }
+    if (!callback) {
+        throw new Error('Unable to retrieve "' + key + '" from cache: no callback provided');
+    }
 
     if (this.cache[key] === undefined || options.forceFetch) {
         //Cache miss.
