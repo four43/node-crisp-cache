@@ -1131,7 +1131,7 @@ describe("CrispCache", function () {
             assert.deepEqual(getOptions.callCount, 2, 'getOptions should be called once for every result');
         });
 
-        it(' should complain if `getOptions` throws an error', function(done) {
+        it('should complain if `getOptions` throws an error', function(done) {
             var cached = CrispCache.wrap(function(x, cb) { cb(null, 'foo') }, {
                 createKey: function(x) { return x; },
                 parseKey: function(x) { return [x]; },
