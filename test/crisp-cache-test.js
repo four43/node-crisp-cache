@@ -597,6 +597,36 @@ describe("CrispCache", function () {
                 done();
             });
         });
+
+        it("Should clear all entries", function(done) {
+            async.waterfall([
+                function (callback) {
+                    return crispCacheBasic.get('hello', callback);
+                },
+                function (value, callback) {
+                    assert.equal(value, 'world');
+                    return crispCacheBasic.get('foo', callback);
+                },
+                function (value, callback) {
+                    assert.equal(value, "bar");
+                    crispCacheBasic.clear(callback);
+                },
+                function (clearResult, callback) {
+                    assert.equal(clearResult, true);
+                    return crispCacheBasic.get('hello', callback);
+                },
+                function (value, callback) {
+                    assert.equal(value, "world");
+                    callback(null, true);
+                }
+            ], function (err, value) {
+                assert.equal(err, null);
+                assert.equal(value, true);
+                assert.equal(fetcherSpy.callCount, 3);
+                assert.equal(Object.keys(crispCacheBasic.cache).length, 1);
+                done();
+            });
+        });
     });
 
     var staleCheckSpy;
