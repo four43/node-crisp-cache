@@ -115,7 +115,7 @@ For example:
 ```js
 var cachedReadFile = Cache.wrap(fs.readFile, {
   // Create a cache key from the original function arguments
-  createKey: function(filePath, options) {
+  createKey: function(filePath, encoding) {
 	  return [filePath, encoding].join('__');
   }),
   // Convert your cache key back to an array of arguments
