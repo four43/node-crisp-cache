@@ -227,6 +227,13 @@ CrispCache.prototype.del = function (key, options, callback) {
     }
 };
 
+/**
+ * Clears the cache of all entries.
+ *
+ * @todo Should probably have an event on this.
+ * @param callback
+ * @returns {*}
+ */
 CrispCache.prototype.clear = function(callback) {
     this.cache = {};
     if(this._lru) {

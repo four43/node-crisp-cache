@@ -925,6 +925,24 @@ describe("CrispCache", function () {
           });
         });
 
+        it("Should clear LRU too", function (done) {
+            async.waterfall([
+                function(callback) {
+                    crispCacheBasic.set("testA", "The Value", {size: 3}, callback);
+                },
+                function(success, callback) {
+                    assert.equal(success, true);
+                    crispCacheBasic.set("testB", "The Value B", {size: 2}, callback);
+                },
+                function(success, callback) {
+                    assert.equal(success, true);
+                    assert.equal(crispCacheBasic._lru.size, 5);
+                    crispCacheBasic.clear(callback);
+                }
+            ], function (err, success) {
+                done();
+            });
+        });
     });
 
     describe('Events - General', function() {
