@@ -268,6 +268,19 @@ describe("LRU", function () {
         });
     });
 
+    describe("clear", function() {
+        it("Should remove an entry", function() {
+            lru.put('a', 1);
+            lru.put('b', 1);
+            lru.put('c', 1);
+            lru.clear();
+            assert.equal(lru.head, null);
+            assert.equal(lru.tail, null);
+            assert.equal(lru.size, 0);
+            assert.equal(Object.keys(lru.hash).length, 0);
+        });
+    });
+
     describe("toString", function () {
         it("Should output the state", function () {
             lru.put('a', 1);

@@ -1,10 +1,10 @@
 {
   "name": "crisp-cache",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
   "main": "main.js",
   "scripts": {
-    "test": "mocha",
+    "test": "mocha --expose-gc",
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec ./test/*",
     "coveralls": "npm run coverage && coveralls < coverage/lcov.info"
   },
@@ -19,8 +19,7 @@
     "fresh",
     "stale",
     "expires",
-    "expired",
-    ""
+    "expired"
   ],
   "author": "Seth Miller <seth@four43.com>",
   "license": "MIT",
