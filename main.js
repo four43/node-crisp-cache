@@ -242,6 +242,16 @@ CrispCache.prototype.clear = function(callback) {
     return callback(null, true);
 };
 
+CrispCache.prototype.getUsage = function() {
+    if(this._lru) {
+        return {
+            size:    this._lru.size,
+            maxSize: this._lru.maxSize
+        }
+    }
+    return {};
+};
+
 /**
  * Fetch
  *

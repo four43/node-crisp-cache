@@ -943,6 +943,26 @@ describe("CrispCache", function () {
                 done();
             });
         });
+
+        it("Should update usage", function (done) {
+            async.waterfall([
+                    function (callback) {
+                        crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
+                    },
+                    function (result, callback) {
+                        crispCacheBasic.set("testB", "The Value B", {size: 4}, callback);
+                    },
+                    function (result, callback) {
+                        crispCacheBasic.get("testA", callback);
+                    }
+                ],
+                function (err, result) {
+                    var usage = crispCacheBasic.getUsage();
+                    assert.equal(usage.size, 6);
+                    assert.equal(usage.maxSize, 10);
+                    done();
+                });
+        });
     });
 
     describe('Events - General', function() {
