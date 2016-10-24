@@ -155,6 +155,24 @@ describe("CrispCache", function () {
             });
         });
 
+        it("Should propagate fetcher errors (thrown), if the cache is empty", function(done) {
+            clock = sinon.useFakeTimers();
+            var cache = new CrispCache({
+                fetcher: function() {
+                    throw new Error('fetcher error')
+                }
+            });
+
+            cache.get('key', function(err, value) {
+                try {
+                    assert(err, 'cache should throw an error');
+                    assert.strictEqual(err.message, 'fetcher error', 'error message');
+                    done();
+                }
+                catch (err) { done(err); }
+            })
+        });
+
         it("Should propagate fetcher errors, if the cache is expired", function(done) {
             clock = sinon.useFakeTimers();
             var fetcher = function(key, cb) {
@@ -187,6 +205,45 @@ describe("CrispCache", function () {
                     });
                 }
                 catch (err) { done(err); }
+            });
+        });
+
+        it("Should propagate fetcher errors (thrown), if the cache is expired", function(done) {
+            clock = sinon.useFakeTimers();
+            var fetcher = function(key, cb) {
+                cb(null, 'fetcher init value');
+            }
+            var cache = new CrispCache({
+                fetcher: function(key, cb) {
+                    fetcher(key, cb);
+                },
+                defaultExpiresTtl: 100
+            });
+
+            // Grab the initial value
+            cache.get('key', function(err, value) {
+                try {
+                    assert.strictEqual(value, 'fetcher init value');
+
+                    // Expire the cache, then have the fetcher throw an error
+                    clock.tick(101);
+                    fetcher = function(key, cb) {
+                        throw new Error('fetcher error');
+                    }
+
+                    cache.get('key', function(err, value) {
+                        try {
+                            assert.strictEqual(err && err.message, 'fetcher error');
+                            done();
+                        }
+                        catch (err) {
+                            done(err);
+                        }
+                    });
+                }
+                catch (err) {
+                    done(err);
+                }
             });
         });
 
@@ -229,6 +286,47 @@ describe("CrispCache", function () {
                 }
             });
         });
+
+        it("Should ignore fetcher errors (thrown), if the cache is stale", function (done) {
+            clock = sinon.useFakeTimers();
+            var fetcher = function(key, cb) {
+                cb(null, 'fetcher init value');
+            }
+            var cache = new CrispCache({
+                fetcher: function(key, cb) {
+                    fetcher(key, cb);
+                },
+                defaultStaleTtl: 100,
+                defaultExpiresTtl: 500
+            });
+
+            // Grab the initial value
+            cache.get('key', function(err, value) {
+                try {
+                    assert.strictEqual(value, 'fetcher init value');
+
+                    // Expire the cache, then have the fetcher return an error
+                    clock.tick(101);
+                    fetcher = function(key, cb) {
+                        throw new Error('fetcher error');
+                    }
+
+                    cache.get('key', function(err, value) {
+                        try {
+                            assert.strictEqual(value, 'fetcher init value', 'should return last valid value');
+                            done();
+                        }
+                        catch (err) {
+                            done(err);
+                        }
+                    });
+                }
+                catch (err) {
+                    done(err);
+                }
+            });
+        });
+
     });
 
     describe("Get - Advanced", function () {
