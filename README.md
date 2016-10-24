@@ -298,6 +298,126 @@ crispCacheBasic.set("testC", "The Value C", {size: 5}, callback);
 ```
 Will result in the cache containing just the `testC` entry. The `testA` entry was added, then the `testB` entry. These are both held in cache because their sizes meet the `maxSize` of `10` but don't exceed it yet. When `testC` is added however, the cache finds that `testA` is the oldest and removes it. Seeing that the cache is still too large (`testC`'s 5 + `testB`'s 8 > our `maxSize` of 10) it removes `testB` too, leaving us with just `testC` in the cache.
 
+### Error Handling
+
+CrispCache handles errors returned by the fetcher differently, depending on the state of your cache. The intent of this behavior to smooth out hiccups in flaky asynchronous services, using a valid cached value whenever possible.
+
+While your cache is **empty**, fetcher errors will be **propagated**:
+
+```js
+var cache = new CrispCache({
+  fetcher: function(key, cb) {
+    cb(new Error());
+  }
+});
+
+cache.get('key', function(err, val) {
+  // err!
+});
+```
+
+While your cache is **active** or **stale**, fetcher errors will be **ignored**, and the last available value will be used:
+
+```js
+var i = 0;
+var cache = new CrispCache({
+  fetcher: function(key, cb) {
+	  // Return a value, on the first request
+	  if (i === 0) {
+		i++;
+		return cb(null, 'first value');
+	  }
+	  // Throw errors, after the first request
+	  cb(null, new Error());
+  },
+  defaultStaleTtl: 1000 * 60,
+  defaultExpiresTtl: 1000 * 60 * 5,
+});
+
+cache.get('key', function(err, val) {
+	// val === 'first value';
+});
+ 
+//...anytime within the next 5 minutes...
+cache.get('key', function(err, val) {
+	// val === 'first value'
+});
+```
+
+While your cache is **expired**, fetcher errors will be **propagated**:
+
+```js
+var i = 0;
+var cache = new CrispCache({
+  fetcher: function(key, cb) {
+	  // Return a value, on the first request
+	  if (i === 0) {
+		i++;
+		return cb(null, 'first value');
+	  }
+	  // Throw errors, after the first request
+	  cb(null, new Error());
+  },
+  defaultStaleTtl: 1000 * 60,
+  defaultExpiresTtl: 1000 * 60 * 5,
+});
+
+cache.get('key', function(err, val) {
+	// val === 'first value';
+});
+ 
+// ...5 minutes later...
+cache.get('key', function(err, val) {
+	// err!
+});
+```
+
+### Caching errors
+
+If you want *all* errors to be propagated, you could wrap CrispCache to cache errors like so:
+
+```
+function asyncFn(key, cb) {
+	// ...
+}
+
+var cache = new CrispCache({
+	fetcher: function(key, cb) {
+		asyncFn(key, function(err, val) {
+			// Cache the error, as though it were a value
+			if (err) {
+				return cb(null, err);
+			}
+			cb(null, val);
+		});
+	},
+	getOptions: function(val) {
+		// Only cache errors for 30 seconds
+		if (val instanceof Error) {
+			return {
+				expiresTtl: 1000 * 30
+			}
+		}
+
+		// Cache regular values for 5 minutes
+		return {
+			expiresTtl: 1000 * 60 * 5
+		};
+	}
+});
+
+function cachedAsyncFn(key, cb) {
+	cache.get(key, function(err, val) {
+		// Return error-type values as errors
+		if (val instanceof Error) {
+			return cb(val);
+		}
+
+		cb(err, val);
+	});
+}
+```
+
 ## Roadmap
 
 * Add different caching backends (memory is the only one supported now)
