@@ -94,7 +94,7 @@ CrispCache.prototype.get = function (key, options, callback) {
         //Cache miss.
         debug("- MISS");
 
-		this._emit(CrispCache.EVENT_MISS, { key: key });
+        this._emit(CrispCache.EVENT_MISS, { key: key });
 
         if (options.skipFetch) {
             debug(" - Skipping fetch, returning undefined");
