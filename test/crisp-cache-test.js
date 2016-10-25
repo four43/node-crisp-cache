@@ -1158,6 +1158,30 @@ describe("CrispCache", function () {
                 catch (err) { done(err); }
             });
         });
+
+        it("Should allow size=0", function(done) {
+            var cache = new CrispCache({
+                fetcher: function(key, cb) {
+                    cb(null, 'fetcher value', { size: 0 });
+                },
+                defaultExpiresTtl: 100,
+                maxSize: 100
+            });
+
+            cache.get('key', function(err, value) {
+                try {
+                    assert.ifError(err);
+                    assert.strictEqual(value, 'fetcher value');
+
+                    var usage = cache.getUsage();
+                    assert.strictEqual(usage.size, 0);
+                    done();
+                }
+                catch (err) {
+                    done(err);
+                }
+            });
+        });
     });
 
     describe('Events - General', function() {

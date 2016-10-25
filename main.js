@@ -173,23 +173,19 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         callback = options;
         options = {};
     }
+    // Set default options
+    options = Object.assign({
+        staleTtl: this._getDefaultStaleTtl(),
+        expiresTtl: this._getDefaultExpiresTtl(),
+        size: 1
+    }, options);
 
-    var staleTtl = options.staleTtl,
-        expiresTtl = options.expiresTtl;
-
-    if (staleTtl === undefined) {
-        staleTtl = this._getDefaultStaleTtl();
-    }
-    if (expiresTtl === undefined) {
-        expiresTtl = this._getDefaultExpiresTtl();
-    }
-
-    if (expiresTtl > 0) {
+    if (options.expiresTtl > 0) {
         var cacheEntry = new CacheEntry({
             value: value,
-            staleTtl: staleTtl,
-            expiresTtl: expiresTtl,
-            size: options.size || 1
+            staleTtl: options.staleTtl,
+            expiresTtl: options.expiresTtl,
+            size: options.size
         });
         this.cache[key] = cacheEntry;
         if (this._lru) {
