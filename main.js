@@ -184,18 +184,12 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         expiresTtl = this._getDefaultExpiresTtl();
     }
 
-    if (this._lru && options.size === undefined) {
-        var errStr = 'Cache entry set without size and maxSize is enabled, key was: ' + key;
-        debug(errStr);
-        return callback(new Error(errStr));
-    }
-
     if (expiresTtl > 0) {
         var cacheEntry = new CacheEntry({
             value: value,
             staleTtl: staleTtl,
             expiresTtl: expiresTtl,
-            size: options.size
+            size: options.size || 1
         });
         this.cache[key] = cacheEntry;
         if (this._lru) {
