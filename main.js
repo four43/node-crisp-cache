@@ -18,7 +18,14 @@ function CrispCache(options) {
     if (!options.fetcher) {
         throw new Error("Must pass a fetcher option, a fetcher is a function(key, callback) that can retrieve a key from a repository");
     }
-    this.fetcher = options.fetcher;
+    // Wrap the fetcher with error handling,
+    // to catch synchronous errors
+    this.fetcher = function(key, cb) {
+        try {
+            return options.fetcher(key, cb);
+        }
+        catch (err) { cb(err); }
+    };
 
     // Stale Control
     this.defaultStaleTtl = options.defaultStaleTtl;
