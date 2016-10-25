@@ -52,7 +52,7 @@ describe("Memory Test", function () {
 				var fullMemoryInfo = process.memoryUsage();
 				console.log("Full - Starting: " + (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (~102400)");
 				var memoryIncrease = fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
-				assert.ok((memoryIncrease > 90000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
+				assert.ok((memoryIncrease > 80000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
 				done();
 			});
 		});
@@ -72,7 +72,7 @@ describe("Memory Test", function () {
 				var fullMemoryInfo = process.memoryUsage();
 				console.log("Full - Starting: " + (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (~102400)");
 				var memoryIncrease = fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
-				assert.ok((memoryIncrease > 90000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
+				assert.ok((memoryIncrease > 80000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
 				crispCacheBasic.clear(function (err, success) {
 					global.gc();
 					var clearedMemoryInfo = process.memoryUsage();
@@ -101,7 +101,7 @@ describe("Memory Test", function () {
 			var fullMemoryInfo = process.memoryUsage();
 			console.log("Full - Starting: " + (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (~102400)");
 			var memoryIncrease = fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
-			assert.ok((memoryIncrease > 90000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
+			assert.ok((memoryIncrease > 80000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
 
 			var deletes = [];
 			for(var i = 0; i < 50; i++) {
@@ -134,7 +134,7 @@ function get100Sets(crispCacheBasic) {
 			return function (callback) {
 				var data = [];
 				for (var j = 0; j < 102400; j++) {
-					data.push(0.123);
+					data.push(i + j);
 				}
 				crispCacheBasic.set(key, data, callback);
 			};
