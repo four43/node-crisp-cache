@@ -100,7 +100,7 @@ Set a value to the cache. Will call `callback` (an error first callback) with a 
 | ------ | ---- | ------- | ----------- |
 | `staleTtl` | (integer, ms) | `crispCache.defaultStaleTtl` | How long the cache entry is valid before becoming stale. |
 | `expiresTtl` | (integer, ms) | `crispCache.defaultExpiresTtl` | If >0, cache entries that are older than this time will be deleted |
-| `size` | (integer) | `null` | Required when `maxSize` is set on the cache, specifies the size for this entry. |
+| `size` | (integer) | `1` | Required when `maxSize` is set on the cache, specifies the size for this cache entry. |
 
 ### del(key, [callback])
 Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
