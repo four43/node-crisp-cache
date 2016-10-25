@@ -174,11 +174,9 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         options = {};
     }
     // Set default options
-    options = Object.assign({
-        staleTtl: this._getDefaultStaleTtl(),
-        expiresTtl: this._getDefaultExpiresTtl(),
-        size: 1
-    }, options);
+    'staleTtl' in options || (options.staleTtl = this._getDefaultStaleTtl());
+    'expiresTtl' in options || (options.expiresTtl = this._getDefaultExpiresTtl());
+    'size' in options || (options.size = 1);
 
     if (options.expiresTtl > 0) {
         var cacheEntry = new CacheEntry({
