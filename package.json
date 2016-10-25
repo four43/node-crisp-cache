@@ -4,8 +4,9 @@
   "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
   "main": "main.js",
   "scripts": {
-    "test": "mocha --expose-gc",
-    "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec ./test/*",
+    "test": "mocha --expose-gc -R spec ./test/*",
+    "#comment": "Can't run coverage over memory tests, --expose-gc is not available.",
+    "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec --grep 'memory' -i ./test/*",
     "coveralls": "npm run coverage && coveralls < coverage/lcov.info"
   },
   "repository": {
@@ -32,9 +33,9 @@
   },
   "devDependencies": {
     "async": "^1.4.2",
-    "coveralls": "^2.11.2",
-    "istanbul": "^0.3.18",
-    "mocha": "^2.1.0",
+    "coveralls": "^2.11.13",
+    "istanbul": "^0.3.22",
+    "mocha": "^2.5.3",
     "mocha-lcov-reporter": "0.0.2",
     "seed-random": "^2.2.0",
     "sinon": "^1.16.1"
