@@ -94,7 +94,7 @@ CrispCache.prototype.get = function (key, options, callback) {
         //Cache miss.
         debug("- MISS");
 
-		this._emit(CrispCache.EVENT_MISS, { key: key });
+        this._emit(CrispCache.EVENT_MISS, { key: key });
 
         if (options.skipFetch) {
             debug(" - Skipping fetch, returning undefined");
@@ -173,28 +173,16 @@ CrispCache.prototype.set = function (key, value, options, callback) {
         callback = options;
         options = {};
     }
+    // Set default options
+    'staleTtl' in options || (options.staleTtl = this._getDefaultStaleTtl());
+    'expiresTtl' in options || (options.expiresTtl = this._getDefaultExpiresTtl());
+    'size' in options || (options.size = 1);
 
-    var staleTtl = options.staleTtl,
-        expiresTtl = options.expiresTtl;
-
-    if (staleTtl === undefined) {
-        staleTtl = this._getDefaultStaleTtl();
-    }
-    if (expiresTtl === undefined) {
-        expiresTtl = this._getDefaultExpiresTtl();
-    }
-
-    if (this._lru && options.size === undefined) {
-        var errStr = 'Cache entry set without size and maxSize is enabled, key was: ' + key;
-        debug(errStr);
-        return callback(new Error(errStr));
-    }
-
-    if (expiresTtl > 0) {
+    if (options.expiresTtl > 0) {
         var cacheEntry = new CacheEntry({
             value: value,
-            staleTtl: staleTtl,
-            expiresTtl: expiresTtl,
+            staleTtl: options.staleTtl,
+            expiresTtl: options.expiresTtl,
             size: options.size
         });
         this.cache[key] = cacheEntry;

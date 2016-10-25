@@ -946,12 +946,9 @@ describe("CrispCache", function () {
         });
 
         it("Should emit expire events with evict check", function (done) {
-            var simpleReturn = function(arg) {
-                return arg;
-            };
-            var evictCheckSpy = sinon.spy(simpleReturn);
+            var evictCheckSpy = sinon.spy();
             crispCacheBasic.on('evictCheck', evictCheckSpy);
-            var evictCheckDoneSpy = sinon.spy(simpleReturn);
+            var evictCheckDoneSpy = sinon.spy();
             crispCacheBasic.on('evictCheckDone', evictCheckDoneSpy);
             async.waterfall([
                     function (callback) {
@@ -967,7 +964,15 @@ describe("CrispCache", function () {
                 function (err, value) {
                     assert.equal(evictCheckSpy.callCount, 6);
                     assert.equal(evictCheckDoneSpy.callCount, 6);
-                    assert.ok(evictCheckDoneSpy.returned({"hello":{"value":"world","staleTtl":300,"expiresTtl":500,"created":1,"size":null}}));
+                    assert.deepEqual(evictCheckDoneSpy.args[5][0], {
+                        hello: {
+                            value: 'world',
+                            staleTtl: 300,
+                            expiresTtl: 500,
+                            created: 1,
+                            size: 1
+                        }
+                    });
                     done();
                 });
         });
@@ -1031,13 +1036,6 @@ describe("CrispCache", function () {
                     assert.equal(crispCacheBasic._lru.head.key, 'testA');
                     done();
                 });
-        });
-
-        it("Should update LRU without size", function (done) {
-            crispCacheBasic.set("testA", "The Value A", function (err, result) {
-                assert.ok(err);
-                done();
-            });
         });
 
         it("Should remove LRU via crispCache", function (done) {
@@ -1137,6 +1135,52 @@ describe("CrispCache", function () {
                     assert.equal(usage.maxSize, 10);
                     done();
                 });
+        });
+
+        it("Should default to size=1", function(done) {
+            var cache = new CrispCache({
+                fetcher: function(key, cb) {
+                    cb(null, 'fetcher value');
+                },
+                defaultExpiresTtl: 100,
+                maxSize: 100
+            });
+
+            cache.get('key', function(err, value) {
+                try {
+                    assert.ifError(err);
+                    assert.strictEqual(value, 'fetcher value');
+
+                    var usage = cache.getUsage();
+                    assert.strictEqual(usage.size, 1);
+                    done();
+                }
+                catch (err) { done(err); }
+            });
+        });
+
+        it("Should allow size=0", function(done) {
+            var cache = new CrispCache({
+                fetcher: function(key, cb) {
+                    cb(null, 'fetcher value', { size: 0 });
+                },
+                defaultExpiresTtl: 100,
+                maxSize: 100
+            });
+
+            cache.get('key', function(err, value) {
+                try {
+                    assert.ifError(err);
+                    assert.strictEqual(value, 'fetcher value');
+
+                    var usage = cache.getUsage();
+                    assert.strictEqual(usage.size, 0);
+                    done();
+                }
+                catch (err) {
+                    done(err);
+                }
+            });
         });
     });
 
