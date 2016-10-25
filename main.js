@@ -206,6 +206,7 @@ CrispCache.prototype.set = function (key, value, options, callback) {
  *
  * Removes and item from the cache, ensures all locks are cleaned up before removing.
  * @param {string} key
+ * @param {{}} options
  * @param {valueCb} [callback]
  * @returns {*}
  */
@@ -224,6 +225,31 @@ CrispCache.prototype.del = function (key, options, callback) {
     if (callback) {
         return callback(null, true);
     }
+};
+
+/**
+ * Clears the cache of all entries.
+ *
+ * @todo Should probably have an event on this.
+ * @param callback
+ * @returns {*}
+ */
+CrispCache.prototype.clear = function(callback) {
+    this.cache = {};
+    if(this._lru) {
+        this._lru.clear();
+    }
+    return callback(null, true);
+};
+
+CrispCache.prototype.getUsage = function() {
+    if(this._lru) {
+        return {
+            size:    this._lru.size,
+            maxSize: this._lru.maxSize
+        }
+    }
+    return {};
 };
 
 /**

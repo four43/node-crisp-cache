@@ -153,6 +153,16 @@ cachedReadFile('/path/to/file', 'utf8', function(err, contents) {
 | `events` | (Object) | null | A list of callbacks for events, keyed by the event name. Ex. `{ fetch: function(fetchInfo) { console.log(fetchInfo.key); } }` will log each key that is fetched from the original data source. |
 | ... | | | All options accepted by the `CrispCache` constructor are also accepted by `CrispCache.wrap`. See `new CrispCache()` documentation.
 
+### CrispCache.getUsage()
+Returns some basic usage when using maxSize/LRU capabilities.
+
+Returns:
+```javascript
+{
+	size (integer),
+	maxSize (integer)
+}
+```
 
 ## Advanced Usage
 
