@@ -2,16 +2,18 @@
 A crispy fresh cache that will use updated data where it can, but can use a stale entry if need be - useful for high throughput
 applications that want to avoid cache-slams and blocking.
 
-**crisp-cache is now v1.x, tested, and stable.**
+**v2 Build Status:**
+[![v2 Build Status](https://travis-ci.org/four43/node-crisp-cache.svg?branch=v2)](https://travis-ci.org/four43/node-crisp-cache)
+[![v2 Coverage Status](https://coveralls.io/repos/four43/node-crisp-cache/badge.svg?branch=v2&service=github)](https://coveralls.io/github/four43/node-crisp-cache?branch=master)
 
-Master Build Status: 
-[![Build Status](https://travis-ci.org/four43/node-crisp-cache.svg?branch=master)](https://travis-ci.org/four43/node-crisp-cache)
-[![Coverage Status](https://coveralls.io/repos/four43/node-crisp-cache/badge.svg?branch=master&service=github)](https://coveralls.io/github/four43/node-crisp-cache?branch=master)
+With this cache, data may become stale before being invalidated. It adds a state to a cache entry - Valid, **[Stale]**, and Expired. If the data is stale, the cache will return the cached entry, but asynchronously re-fetch data to ensure data stays available. The consumer will get the performance of cache hits, while still maintaining updated data. A locking mechanism is also provided so when a cache misses, data will only be retrieved once.
 
-This cache is for high throughput applications where cache data may become stale before being invalidated. It adds a state
-to a cache entry - Valid, [Stale], and Expired. This allows the program to ask for a value before the data is evicted from 
-the cache. If the data is stale, the cache will return the stale data, but asynchronously re-fetch data to ensure data stays 
-available. A locking mechanism is also provided so when a cache misses, data will only be retrieved once.
+#### Core Features:
+ * **Stale State** - Asynchronously fetch new data while serving cached data.
+ * **Locking** - Only fetch a new entry once, then use it in the cache.
+ * **Least Recently Used (LRU)** - To manage cache size.
+
+**Version 2 is currently in progress, have a feature request? Make an issue! We would love to hear your feedback**
 
 __This project sponsored in part by:__
 
@@ -27,26 +29,41 @@ var data = {
     hash: {key: "value", nested: [4, 5, 6]}
 };
 function fetcher(key, callback) {
-    return callback(null, data[key]);
+    return Promise.resolve(data[key]);
 }
 
 crispCacheBasic = new CrispCache({
     fetcher: fetcher,
-    defaultStaleTtl: 300,
-    defaultExpiresTtl: 500,
-    staleCheckInterval: 100
+    defaultTtls: {
+        stale: 300,
+        expires: 500,
+    },
+    checkIntervals: {
+        stale: 100,
+        expires: 1000
+    }
 });
+// Get a value, call the fetcher if we don't have it (which we don't at this point)
+crispCacheBasic.get('foo', function (err, value) {
+    if (!err) {
+        console.log("Got 'foo', is: " + value); // Outputs: Got 'foo', is: bar
+    }
+});
+crispCacheBasic.get('foo')
+    .then(value => 
+        console.log("Got 'foo', is: " + value); // Outputs: Got 'foo', is: bar
+    )
+    .catch(err => console.error(err))
+});
+
+// Set something outside of the fetcher if we want
 crispCacheBasic.set('new', 'A new value, not from fetcher', function (err, success) {
     if (success) {
         console.log("Set 'new' to our provided string.");
     }
 });
 
-crispCacheBasic.get('foo', function (err, value) {
-    if (!err) {
-        console.log("Got 'foo', is: " + value);
-    }
-});
+
 //Wait any amount of time
 
 crispCacheBasic.get('foo', {skipFetch: true}, function (err, value) {
