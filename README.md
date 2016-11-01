@@ -28,8 +28,12 @@ var data = {
     arr: [1, 2, 3],
     hash: {key: "value", nested: [4, 5, 6]}
 };
-function fetcher(key, callback) {
+function fetcher(key) {
     return Promise.resolve(data[key]);
+}
+
+function fetcher(key, cb) {
+    cb(null, data[key]);
 }
 
 crispCacheBasic = new CrispCache({
@@ -54,7 +58,6 @@ crispCacheBasic.get('foo')
         console.log("Got 'foo', is: " + value); // Outputs: Got 'foo', is: bar
     )
     .catch(err => console.error(err))
-});
 
 // Set something outside of the fetcher if we want
 crispCacheBasic.set('new', 'A new value, not from fetcher', function (err, success) {

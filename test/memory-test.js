@@ -65,25 +65,25 @@ describe("Memory Test", function () {
 		var startingMemoryInfo = process.memoryUsage();
 
 		async.parallel(sets, function (err, success) {
-				assert.ifError(err);
-				assert.ok(success);
+			assert.ifError(err);
+			assert.ok(success);
 
+			global.gc();
+			var fullMemoryInfo = process.memoryUsage();
+			console.log("Full - Starting: " + (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (~102400)");
+			var memoryIncrease = fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
+			assert.ok((memoryIncrease > 80000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
+			crispCacheBasic.clear(function (err, success) {
 				global.gc();
-				var fullMemoryInfo = process.memoryUsage();
-				console.log("Full - Starting: " + (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (~102400)");
-				var memoryIncrease = fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
-				assert.ok((memoryIncrease > 80000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
-				crispCacheBasic.clear(function (err, success) {
-					global.gc();
-					var clearedMemoryInfo = process.memoryUsage();
-					var endDifference = clearedMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
+				var clearedMemoryInfo = process.memoryUsage();
+				var endDifference = clearedMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
 
-					console.log("Cleared - Full: " + (clearedMemoryInfo.heapUsed - fullMemoryInfo.heapUsed) + " (<0)");
-					console.log("Cleared - Starting: " + (clearedMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (Ideally 0)");
-					console.log("Cleared - Starting (%): " + ((clearedMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) / (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed)) + " (Ideally 0)");
-					assert.ok((endDifference / memoryIncrease) < 0.03, "We leaked more than 3% of memory on clear, was " + (((clearedMemoryInfo.heapUsed / startingMemoryInfo.heapUsed) - 1) * 100) + "%");
-					done();
-				});
+				console.log("Cleared - Full: " + (clearedMemoryInfo.heapUsed - fullMemoryInfo.heapUsed) + " (<0)");
+				console.log("Cleared - Starting: " + (clearedMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (Ideally 0)");
+				console.log("Cleared - Starting (%): " + ((clearedMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) / (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed)) + " (Ideally 0)");
+				assert.ok((endDifference / memoryIncrease) < 0.03, "We leaked more than 3% of memory on clear, was " + (((clearedMemoryInfo.heapUsed / startingMemoryInfo.heapUsed) - 1) * 100) + "%");
+				done();
+			});
 		});
 	});
 
@@ -104,9 +104,9 @@ describe("Memory Test", function () {
 			assert.ok((memoryIncrease > 80000000), "Didn't increase memory usage like we though. Method to check memory usage may be broken");
 
 			var deletes = [];
-			for(var i = 0; i < 50; i++) {
-				deletes.push(function(key) {
-					return function(callback) {
+			for (var i = 0; i < 50; i++) {
+				deletes.push(function (key) {
+					return function (callback) {
 						crispCacheBasic.del(key, callback);
 					}
 				}(i));
