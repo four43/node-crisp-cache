@@ -1,20 +1,14 @@
-var assert = require('assert'),
-	Lru = require('../lib/Lru'),
-	sinon = require('sinon');
+import * as assert from 'assert';
+import {Lru} from  '../src/lib/ExpireStrategies/Lru';
+import * as sinon from 'sinon';
 
 describe("LRU", function () {
 
-	var delSpy = null,
-		lru = null;
-
-	it("Sanity Check", function () {
-		lru = new Lru();
-		assert.ok(lru instanceof Lru);
-	});
+	let delSpy:sinon.SinonSpy,
+		lru:Lru;
 
 	beforeEach(function () {
-		delSpy = sinon.spy(function (key) {
-		});
+		delSpy = sinon.spy((key:string) => {});
 		lru = new Lru({
 			maxSize: 10,
 			delCallback: delSpy

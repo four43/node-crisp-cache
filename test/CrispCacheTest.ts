@@ -1,7 +1,7 @@
 var assert = require('assert'),
 	async = require('async'),
-	CacheEntry = require('../lib/CacheEntry'),
-	CrispCache = require('../main'),
+	CacheEntry = require('../src/lib/CacheEntry'),
+	CrispCache = require('../src/main'),
 	seed = require('seed-random'),
 	sinon = require('sinon');
 

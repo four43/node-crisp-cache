@@ -10,8 +10,8 @@ With this cache, data may become stale before being invalidated. It adds a state
 
 #### Core Features:
  * **Stale State** - Asynchronously fetch new data while serving cached data.
- * **Locking** - Only fetch a new entry once, then use it in the cache.
- * **Least Recently Used (LRU)** - To manage cache size.
+ * **Locking** - Only fetch a new entry once, then use it in the cache for all concurrent requests.
+ * **Least Recently Used (LRU)** - To manage cache size, remove the oldest used first, a configurable strategy.
 
 **Version 2 is currently in progress, have a feature request? Make an issue! We would love to hear your feedback**
 
@@ -39,12 +39,12 @@ function fetcher(key, cb) {
 crispCacheBasic = new CrispCache({
     fetcher: fetcher,
     defaultTtls: {
-        stale: 300,
-        expires: 500,
+        stale: 300000,
+        expires: 500000,
     },
     checkIntervals: {
-        stale: 100,
-        expires: 1000
+        stale: 100000,
+        expires: 1000000
     }
 });
 // Get a value, call the fetcher if we don't have it (which we don't at this point)
@@ -53,9 +53,10 @@ crispCacheBasic.get('foo', function (err, value) {
         console.log("Got 'foo', is: " + value); // Outputs: Got 'foo', is: bar
     }
 });
+// Fetch returns a promise too!
 crispCacheBasic.get('foo')
     .then(value => 
-        console.log("Got 'foo', is: " + value); // Outputs: Got 'foo', is: bar
+        console.log("Got 'foo', is: " + value) // Outputs: Got 'foo', is: bar
     )
     .catch(err => console.error(err))
 

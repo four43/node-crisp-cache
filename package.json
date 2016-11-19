@@ -4,7 +4,8 @@
   "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
   "main": "main.js",
   "scripts": {
-    "test": "mocha --expose-gc -R spec ./test/*",
+    "test": "mocha --expose-gc -R spec --compilers ts:./test/ts-node-test.js,tsx:./test/ts-node-test.js ./test/*",
+    "build": "tsc",
     "#comment": "Can't run coverage over memory tests, --expose-gc is not available.",
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec --grep 'memory' -i ./test/*",
     "coveralls": "npm run coverage && coveralls < coverage/lcov.info"
@@ -29,7 +30,10 @@
   },
   "homepage": "https://github.com/four43/node-crisp-cache#readme",
   "dependencies": {
-    "debug": "^2.2.0"
+    "@types/lodash": "^4.14.38",
+    "@types/mocha": "^2.2.33",
+    "@types/node": "^6.0.46",
+    "lodash": "^4.16.6"
   },
   "devDependencies": {
     "async": "^1.4.2",
@@ -38,6 +42,8 @@
     "mocha": "^2.5.3",
     "mocha-lcov-reporter": "0.0.2",
     "seed-random": "^2.2.0",
-    "sinon": "^1.16.1"
+    "sinon": "^1.16.1",
+    "ts-node": "^1.7.0",
+    "typescript": "^2.0.7"
   }
 }

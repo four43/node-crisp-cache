@@ -1,8 +1,4 @@
-var assert = require('assert'),
-	async = require('async'),
-	CrispCache = require('../main'),
-	sinon = require('sinon'),
-	util = require('util');
+import * as assert from 'assert';
 
 /**
  * **Notes:**
