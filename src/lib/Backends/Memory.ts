@@ -1,15 +1,17 @@
-import {AbstractBackend} from "./AbstractBackend";
+import {AbstractBackend, NextResult} from "./AbstractBackend";
 import * as Backend from "../Util/LinkedHashMap";
 
 export class Memory<T> implements AbstractBackend<T> {
 
-	entries: Backend.LinkedHashMap<T>;
+	protected entries: Backend.LinkedHashMap<T>;
+	protected locks: {[id:string]: number};
 
 	constructor(opts?: any) {
 		this.entries = new Backend.LinkedHashMap<T>();
+		this.locks = {};
 	}
 
-	async get(key: string): Promise<T> {
+	async get(key: string): Promise<T|undefined> {
 		return Promise.resolve(this.entries.get(key));
 	}
 
@@ -23,8 +25,34 @@ export class Memory<T> implements AbstractBackend<T> {
 		return Promise.resolve();
 	}
 
-	async next(cursor?: Backend.Entry<T>): Promise<{value:T|null, next:() => any}> {
-		const {value, next} = this.entries.next(cursor);
-		return Promise.resolve({value, next});
+	async lock(key: string, timeout?:number): Promise<boolean> {
+		const lockEntry:number|undefined = this.locks[key];
+		if(lockEntry) {
+			if(Date.now() < lockEntry) {
+				return Promise.resolve(false);
+			}
+		}
+		this.locks[key] = Date.now() + timeout;
+		return Promise.resolve(true);
+	}
+
+	async unlock(key:string) :Promise<void> {
+		delete this.locks[key];
+		return Promise.resolve();
+	}
+
+	async next(cursor?:any): Promise<NextResult<T>|false> {
+		if(cursor) {
+			return Promise.resolve(cursor());
+		}
+		const result = this.entries.next(cursor);
+		if(result) {
+			return Promise.resolve({
+				key: result.key,
+				value: result.value,
+				next: () => this.next(result.next)
+			})
+		}
+		return false;
 	}
 }

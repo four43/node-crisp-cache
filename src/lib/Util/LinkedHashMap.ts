@@ -22,8 +22,11 @@ export class LinkedHashMap<T> {
 		this.hash[key] = newEntry;
 	}
 
-	get(key: string): T {
-		return this.hash[key].value;
+	get(key: string): T|undefined {
+		if(this.hash[key]) {
+			return this.hash[key].value;
+		}
+		return undefined;
 	}
 
 	del(key: string) {
@@ -44,26 +47,32 @@ export class LinkedHashMap<T> {
 		}
 	}
 
-	next(cursor?: Entry<T>|null): NextResult<T> {
+	next(cursor?: Entry<T>|null): NextResult<T>|false {
 		if (cursor) {
 			const nextEntry = this.hash[cursor.key];
-			return {
-				value: nextEntry.value,
-				next: () => this.next(nextEntry)
+			if (nextEntry) {
+				return {
+					key: nextEntry.key,
+					value: nextEntry.value,
+					next: () => this.next(nextEntry)
+				}
 			}
 		}
-		else {
+		else if (this.head) {
 			return {
-				value: (this.head) ? this.head.value : null,
+				key: this.head.key,
+				value: this.head.value,
 				next: () => this.next(this.head)
 			}
 		}
+		return false;
 	}
 }
 
 interface NextResult<T> {
-	value: T|null,
-	next: () => NextResult<T>
+	key: string,
+	value: T,
+	next: () => NextResult<T>|false
 }
 
 export class Entry<T> {

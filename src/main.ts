@@ -1,6 +1,6 @@
 import {EventEmitter} from "events";
 import * as _ from "lodash";
-import {AbstractBackend} from "./lib/Backends/AbstractBackend";
+import {AbstractBackend, NextResult} from "./lib/Backends/AbstractBackend";
 import {Memory} from "./lib/Backends/Memory";
 import CacheEntry from "./lib/CacheEntry";
 
@@ -16,21 +16,21 @@ export type CrispCacheConstructOptions<T> = {
 		stale?: number,
 		expires?: number
 	},
-	backend?: AbstractBackend<T>,
+	backend?: AbstractBackend<CacheEntry<T>>,
 	maxSize: number,
 	emitEvents?: boolean,
-	events?: {[id: CrispCacheEvent]: GeneralErrorFirstCallback}
+	events?: {[id: string]: GeneralErrorFirstCallback}
 };
 export type CrispCacheOptions<T> = {
-	defaultTtls?: {
-		stale?: number,
-		staleVariance?: number,
-		expires?: number,
-		expiresVariance?: number
+	defaultTtls: {
+		stale: number,
+		staleVariance: number,
+		expires: number,
+		expiresVariance: number
 	},
-	checkIntervals?: {
-		stale?: number,
-		expires?: number
+	checkIntervals: {
+		stale: number,
+		expires: number
 	},
 	emitEvents: boolean
 };
@@ -42,15 +42,15 @@ type GetOptions = {
 	skipFetch: boolean
 }
 
-export enum CrispCacheEvent {
-	HIT,
-	MISS,
-	FETCH,
-	FETCH_DONE,
-	STALE_CHECK,
-	STALE_CHECK_DONE,
-	EXPIRES_CHECK,
-	EXPIRES_CHECK_DONE
+export class CrispCacheEvents {
+	static readonly HIT = 'hit';
+	static readonly MISS = 'miss';
+	static readonly FETCH = 'fetch';
+	static readonly FETCH_DONE = 'fetch_done';
+	static readonly STALE_CHECK = 'stale_check';
+	static readonly STALE_CHECK_DONE = 'stale_check_done';
+	static readonly EXPIRES_CHECK = 'expires_check';
+	static readonly EXPIRES_CHECK_DONE = 'expires_check_done';
 }
 
 /**
@@ -64,8 +64,10 @@ export default class CrispCache<T> extends EventEmitter {
 
 	public options: CrispCacheOptions<T>;
 	public fetcher: {(key: string): Promise<T>};
-	public backend: AbstractBackend<T>;
-	public locks: {(key: string): Promise<T>};
+	public backend: AbstractBackend<CacheEntry<T>>;
+	public locks: {[id: string]: Deferred<T>[]} = {};
+
+	public static EVENTS = CrispCacheEvents;
 
 	constructor(opts: CrispCacheConstructOptions<T>) {
 		super();
@@ -82,7 +84,7 @@ export default class CrispCache<T> extends EventEmitter {
 			},
 			emitEvents: false
 		});
-		this.backend = opts.backend || new Memory<T>();
+		this.backend = opts.backend || new Memory<CacheEntry<T>>();
 
 
 		//Fetcher
@@ -143,43 +145,40 @@ export default class CrispCache<T> extends EventEmitter {
 	 * @param callback
 	 * @returns {Promise.<TResult>|*}
 	 */
-	get(key: string, options?: GetOptions, callback?: ErrorFirstValueCallback<T>): Promise<T> {
-		//Parse Args
-		if (typeof options === 'function' && !callback) {
-			callback = options;
-			options = {};
-		}
+	async get(key: string): Promise<T|undefined>;
+	async get(key: string, options: GetOptions): Promise<T|undefined>;
+	async get(key: string, options?: GetOptions, callback?: ErrorFirstValueCallback<T>): Promise<T|undefined> {
 
 		const getPromise = this.backend.get(key)
 			.then(cacheEntry => {
-				if (value === undefined || options.forceFetch) {
+				if (cacheEntry === null || (options && options.forceFetch)) {
 					//Cache miss.
-					this._emit(CrispCache.EVENT_MISS, {key: key});
+					this._emit(CrispCache.EVENTS.MISS, {key: key});
 
-					return (options.skipFetch) ? undefined : this._fetch(key);
+					return (options && options.skipFetch) ? null : this.fetch(key);
 				}
 				else {
 					//Cache hit, what is the state?
 					if (cacheEntry.isValid()) {
-						this._emit(CrispCache.EVENT_HIT, {key: key, entry: cacheEntry});
+						this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
 
 						if (this._lru) {
 							this._lru.put(key, cacheEntry.getSize());
 						}
-						return cacheEntry.getValue();
+						return cacheEntry.value;
 					}
 					else if (cacheEntry.isStale()) {
 						//Stale, try and update the cache but return what we have.
-						this._emit(CrispCache.EVENT_HIT, {key: key, entry: cacheEntry});
+						this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
 
 						if (this._lru) {
 							this._lru.put(key, cacheEntry.getSize());
 						}
-						this._fetch(key, {
-							staleTtl: cacheEntry.staleTtl,
-							expiresTtl: cacheEntry.expiresTtl
+						this.fetch(key, {
+							ttls: cacheEntry.ttls,
+							size: cacheEntry.size || 1
 						});
-						return cacheEntry.getValue();
+						return cacheEntry.value;
 					}
 					else if (cacheEntry.isExpired()) {
 						this._emit(CrispCache.EVENT_MISS, {key: key, entry: cacheEntry});
@@ -203,30 +202,131 @@ export default class CrispCache<T> extends EventEmitter {
 	}
 
 	/**
+	 * Delete
+	 *
+	 * Removes and item from the cache, ensures all locks are cleaned up before removing.
+	 * @param {string} key
+	 * @param {{}} options
+	 * @param {valueCb} [callback]
+	 * @returns {*}
+	 */
+	async del(key: string): Promise<void>;
+	async del(key: string, options?: {skipLruDelete?: boolean}): Promise<void>;
+	async del(key: string, callback?: ErrorFirstValueCallback<T>): Promise<void>;
+	async del(key: string, options?: {skipLruDelete?: boolean}, callback?: ErrorFirstValueCallback<T>): Promise<void> {
+
+		if (this._lru && !options.skipLruDelete) {
+			this._lru.del(key, true);
+		}
+		await this.backend.del(key);
+		this._resolveLocks(key, undefined);
+		if (callback) {
+			return callback(null, true);
+		}
+	};
+
+	/**
+	 * Fetch
+	 *
+	 * Fetches a key from the data provider, the via the provided fetch callable when this object was created.
+	 *
+	 * @param {string} key
+	 * @param {{}|function} options - An options object or a callback
+	 * @param {valueCb} [callback] - If options, an error first callback
+	 * @returns {Number|*}
+	 * @private
+	 */
+	private async fetch(key: string): Promise<CacheEntry<T>>
+	private async fetch(key: string,
+	                     options: {ttls: {stale: number, expires: number}, size?: number} = {ttls: {stale: 0, expires: 0}, size: 1}): Promise<CacheEntry<T>> {
+		const doneFetching = new Deferred();
+
+		this.lock(key, doneFetching)
+			.then(() => {
+				this._emit(CrispCache.EVENTS.FETCH, {key: key});
+				this.fetcher(key)
+					.then(value => {
+						this._emit(CrispCache.EVENTS.FETCH_DONE, {key: key, value: value});
+						this.set(key, value, {
+							ttls: {
+								stale: options.ttls.stale || this.options.defaultTtls.stale,
+								expires: options.ttls.expires || this.options.defaultTtls.expires
+							}
+						});
+					})
+					.catch(err => {
+						this.resolveLocks(key, undefined, err);
+						return;
+					});
+			});
+		return doneFetching;
+	};
+
+
+	/**
+	 * Lock
+	 *
+	 * Adds a callback to the locks for this key.
+	 * @param {string} key
+	 * @param {Promise} resultPromise
+	 * @return {bool} Whether we were able to acquire the lock or not.
+	 * @private
+	 */
+	private async lock(key: string, resultPromise: Deferred<T>):Promise<boolean> {
+		if (await this.backend.lock) {
+			this.locks[key] = [resultPromise];
+			return true;
+		}
+		else {
+			this.locks[key].push(resultPromise);
+			return false;
+		}
+	};
+
+	/**
+	 * Resolve Locks
+	 *
+	 * Resolves all the locks for a given key with the supplied value.
+	 * @private
+	 */
+	private async resolveLocks(key: string, value: T|undefined, err?: Error) {
+		if (this.locks[key]) {
+			//Clear out anyone waiting on this key.
+			if(err) {
+				this.locks[key].map(promise => promise.reject(value));
+			}
+			else {
+				this.locks[key].map(promise => promise.resolve(value));
+			}
+			delete this.locks[key];
+		}
+		return this.backend.unlock(key);
+	};
+
+	/**
 	 * Stale Check
 	 *
 	 * Checks for stale keys and will try and update them. Should be called on an interval.
 	 * @private
 	 */
-	private _staleCheck() {
-		//This is a little gross for efficiency, this.cache will just have basic keys on it, no need to double check.
-		this._emit(CrispCacheEvent.STALE_CHECK);
-		var cacheEntry,
-			refetchKeys = [];
-		for (var key in this.cache) {
-			cacheEntry = this.cache[key];
+	private async _staleCheck() {
+		this._emit(CrispCacheEvents.STALE_CHECK);
+
+		const refetchKeys: string[] = [];
+		let cursorResult: NextResult<CacheEntry<T>>|false = await this.backend.next();
+		if (cursorResult) {
+			const cacheEntry = cursorResult.value;
 			if (cacheEntry.isStale()) {
-				debug("- " + key + " was found to be stale, re-fetching");
-				this._fetch(key, {
-					staleTtl: cacheEntry.staleTtl,
-					expiresTtl: cacheEntry.expiresTtl
+				const ttls = cacheEntry.ttls();
+				this._fetch(cursorResult.key, {
+					staleTtl: ttls.stale,
+					expiresTtl: ttls.expiresTtl
 				});
-				if (this.emitEvents) {
-					refetchKeys.push(key);
-				}
+				refetchKeys.push(cursorResult.key);
 			}
 		}
-		this._emit(CrispCacheEvent.STALE_CHECK_DONE, refetchKeys);
+
+		this._emit(CrispCacheEvents.STALE_CHECK_DONE, refetchKeys);
 	};
 
 	/**
@@ -235,28 +335,23 @@ export default class CrispCache<T> extends EventEmitter {
 	 * Evict expired keys, free up some memory. This should be called on an interval.
 	 * @private
 	 */
-	private _expiresCheck() {
-		//This is a little gross for efficiency, this.cache will just have basic keys on it, no need to double check.
+	private async _expiresCheck() {
+		this._emit(CrispCacheEvents.EXPIRES_CHECK);
 
-		this._emit(CrispCacheEvent.EXPIRES_CHECK);
-
-		let cacheEntry: CacheEntry<T>,
-			evicted = {};
-		for (var key in this.cache) {
-			cacheEntry = this.cache[key];
+		const expiredKeys: string[] = [];
+		let cursorResult: NextResult<CacheEntry<T>>|false = await this.backend.next();
+		if (cursorResult) {
+			const cacheEntry = cursorResult.value;
 			if (cacheEntry.isExpired()) {
-				this.del(key);
-				if (this.emitEvents) {
-					evicted[key] = cacheEntry;
-				}
+				this.del(cursorResult.key);
+				expiredKeys.push(cursorResult.key);
 			}
 		}
 
-		this._emit(CrispCacheEvent.EXPIRES_CHECK_DONE, evicted);
+		this._emit(CrispCacheEvents.EXPIRES_CHECK_DONE, expiredKeys);
 	};
 
-	// "private"
-	private _emit(name: CrispCacheEvent, options?: any) {
+	private _emit(name: CrispCacheEvents, options?: any) {
 		if (this.options.emitEvents) {
 			this.emit(name.toString(), options);
 		}
@@ -277,16 +372,26 @@ function callbackify(promise, callback) {
 	return promise;
 }
 
-/**
- *
- * @param {string} key
- * @param {{skipFetch:boolean}} [options]
- * @param {valueCb} callback
- * @returns {*}
- */
-CrispCache.prototype.get = function (key, options, callback) {
+class Deferred<T> implements Promise<T> {
 
-};
+	private promise:Promise<T>;
+	public resolve:(value: T | PromiseLike<T> | undefined) => void;
+	public reject:(reason?: any) => void;
+
+	public then:(result:T) => Promise<T>;
+	public catch: (onrejected: (reason: any) => T | PromiseLike<T>) => Promise<T>;
+	public [Symbol.toStringTag]: "Promise";
+
+	constructor() {
+		this.promise = new Promise<T>((resolve, reject)=> {
+			this.resolve = resolve;
+			this.reject = reject;
+		});
+
+		this.then = this.promise.then;
+		this.catch = this.promise.catch;
+	}
+}
 
 /**
  * Set
@@ -328,34 +433,6 @@ CrispCache.prototype.set = function (key, value, options, callback) {
 };
 
 /**
- * Delete
- *
- * Removes and item from the cache, ensures all locks are cleaned up before removing.
- * @param {string} key
- * @param {{}} options
- * @param {valueCb} [callback]
- * @returns {*}
- */
-CrispCache.prototype.del = function (key, options, callback) {
-	if (typeof options === 'function' && !callback) {
-		callback = options;
-		options = {};
-	}
-	if (options === undefined) {
-		options = {}
-	}
-
-	if (this._lru && !options.skipLruDelete) {
-		this._lru.del(key, true);
-	}
-	delete this.cache[key];
-	this._resolveLocks(key, undefined);
-	if (callback) {
-		return callback(null, true);
-	}
-};
-
-/**
  * Clears the cache of all entries.
  *
  * @todo Should probably have an event on this.
@@ -380,103 +457,6 @@ CrispCache.prototype.getUsage = function () {
 	return {};
 };
 
-/**
- * Fetch
- *
- * Fetches a key from the data provider, the via the provided fetch callable when this object was created.
- *
- * @param {string} key
- * @param {{}|function} options - An options object or a callback
- * @param {valueCb} [callback] - If options, an error first callback
- * @returns {Number|*}
- * @private
- */
-CrispCache.prototype._fetch = function (key, options, callback) {
-	//Parse Args
-	if (typeof options === 'function' && !callback) {
-		callback = options;
-		options = {};
-	}
-
-	if (callback === undefined) {
-		callback = function (err, value) {
-			debug('Fetched ' + key + ': ' + value);
-		}
-	}
-	if (this._lock(key, callback)) {
-		this._emit(CrispCache.EVENT_FETCH, {key: key});
-		this.fetcher(key, function (err, value, fetcherOptions) {
-			this._emit(CrispCache.EVENT_FETCH_DONE, {key: key, value: value, options: fetcherOptions});
-			if (err) {
-				debug("Issue with fetcher, resolving in error");
-				this._resolveLocks(key, undefined, err);
-				return;
-			}
-
-			debug("Got value: " + value + " from fetcher for key: " + key);
-
-			if (fetcherOptions) {
-				var staleTtl = fetcherOptions.staleTtl,
-					expiresTtl = fetcherOptions.expiresTtl,
-					size = fetcherOptions.size;
-
-				if (staleTtl !== undefined) {
-					options.staleTtl = staleTtl;
-				}
-				if (expiresTtl !== undefined) {
-					options.expiresTtl = expiresTtl;
-				}
-				if (size !== undefined) {
-					options.size = size;
-				}
-			}
-			this.set(key, value, options);
-		}.bind(this));
-	}
-};
-
-
-/**
- * Lock
- *
- * Adds a callback to the locks for this key.
- * @param {string} key
- * @param {valueCb} callbackToAdd
- * @return {bool} Whether we were able to acquire the lock or not.
- * @private
- */
-CrispCache.prototype._lock = function (key, callbackToAdd) {
-	if (this.locks[key] === undefined) {
-		this.locks[key] = [callbackToAdd];
-		return true;
-	}
-	else {
-		this.locks[key].push(callbackToAdd);
-		return false;
-	}
-};
-
-/**
- * Resolve Locks
- *
- * Resolves all the locks for a given key with the supplied value.
- * @param {string}key
- * @param value
- * @private
- */
-CrispCache.prototype._resolveLocks = function (key, value, err) {
-	if (this.locks[key]) {
-		//Clear out anyone waiting on this key.
-		var locks = this.locks[key];
-		delete this.locks[key];
-		locks.map(function (lockCb) {
-			if (err) {
-				return lockCb(err);
-			}
-			return lockCb(null, value);
-		});
-	}
-};
 
 /**
  * @returns {Number}
