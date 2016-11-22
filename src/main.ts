@@ -34,8 +34,9 @@ export type CrispCacheOptions<T> = {
 	},
 	emitEvents: boolean
 };
-export type GeneralErrorFirstCallback = {(error: Error, result: any): void};
-export type ErrorFirstValueCallback<T> = {(error: Error, result: T): void};
+export type GeneralErrorFirstCallback = {(error: Error|null, result: any): void};
+export type ErrorFirstBooleanCallback = {(error: Error|null, result: boolean): void};
+export type ErrorFirstValueCallback<T> = {(error: Error|null, result: T|undefined): void};
 
 type GetOptions = {
 	forceFetch: boolean,
@@ -149,57 +150,97 @@ export default class CrispCache<T> extends EventEmitter {
 	async get(key: string, options: GetOptions): Promise<T|undefined>;
 	async get(key: string, options?: GetOptions, callback?: ErrorFirstValueCallback<T>): Promise<T|undefined> {
 
-		const getPromise = this.backend.get(key)
-			.then(cacheEntry => {
-				if (cacheEntry === null || (options && options.forceFetch)) {
-					//Cache miss.
-					this._emit(CrispCache.EVENTS.MISS, {key: key});
 
-					return (options && options.skipFetch) ? null : this.fetch(key);
+		const cacheEntry = await this.backend.get(key);
+		let value:T|undefined;
+		if (cacheEntry === null || (options && options.forceFetch)) {
+			//Cache miss.
+			this._emit(CrispCache.EVENTS.MISS, {key: key});
+			if(options && options.skipFetch) {
+				value = undefined;
+			}
+			else {
+				value = await this.fetch(key);
+			}
+		}
+		else {
+			//Cache hit, what is the state?
+			if (cacheEntry.isValid()) {
+				this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
+
+				if (this._lru) {
+					this._lru.put(key, cacheEntry.getSize());
+				}
+				value = cacheEntry.value;
+			}
+			else if (cacheEntry.isStale()) {
+				//Stale, try and update the cache but return what we have.
+				this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
+
+				if (this._lru) {
+					this._lru.put(key, cacheEntry.getSize());
+				}
+				this.fetch(key, {
+					ttls: cacheEntry.ttls,
+					size: cacheEntry.size || 1
+				});
+				value = cacheEntry.value;
+			}
+			else if (cacheEntry.isExpired()) {
+				this._emit(CrispCache.EVENTS.MISS, {key: key, entry: cacheEntry});
+				if (options && options.skipFetch) {
+					//Don't re-fetch
+					this.del(key);
+					value = undefined;
 				}
 				else {
-					//Cache hit, what is the state?
-					if (cacheEntry.isValid()) {
-						this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
-
-						if (this._lru) {
-							this._lru.put(key, cacheEntry.getSize());
-						}
-						return cacheEntry.value;
-					}
-					else if (cacheEntry.isStale()) {
-						//Stale, try and update the cache but return what we have.
-						this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
-
-						if (this._lru) {
-							this._lru.put(key, cacheEntry.getSize());
-						}
-						this.fetch(key, {
-							ttls: cacheEntry.ttls,
-							size: cacheEntry.size || 1
-						});
-						return cacheEntry.value;
-					}
-					else if (cacheEntry.isExpired()) {
-						this._emit(CrispCache.EVENT_MISS, {key: key, entry: cacheEntry});
-						if (options.skipFetch) {
-							//Don't re-fetch
-							this.del(key);
-							return undefined;
-						}
-						else {
-							//Fetch this key
-							return this._fetch(key, {
-								staleTtl: cacheEntry.staleTtl,
-								expiresTtl: cacheEntry.expiresTtl
-							});
-						}
-					}
+					//Fetch this key
+					value = await this.fetch(key, {
+						ttls: cacheEntry.ttls
+					});
 				}
-			});
-		return callbackify(getPromise, callback);
-
+			}
+		}
+		if(callback) {
+			callback(null, value);
+		}
+		return value;
 	}
+
+	async set(key:string, value:T, options:{ttls: {stale?: number, expires?: number}, size?: number} = {ttls: {stale: undefined, expires: undefined}, size: 1}, callback?: ErrorFirstValueCallback<T>):Promise<void> {
+
+		// Set default options
+		if(options.ttls.stale === undefined) {
+			options.ttls.stale = this.getDefaultStaleTtl();
+		}
+		if(options.ttls.expires === undefined) {
+			options.ttls.expires = this.getDefaultExpiresTtl();
+		}
+		if(options.size === undefined) {
+			options.size = 1;
+		}
+
+		const cacheEntry = new CacheEntry<T>({
+			ttls: {
+				stale: options.ttls.stale,
+				expires: options.ttls.expires
+			},
+			size: options.size,
+			value
+		});
+
+		if (options.ttls.expires > 0) {
+
+			await this.backend.set(key, cacheEntry);
+			if (this._lru) {
+				this._lru.put(key, cacheEntry.size);
+			}
+		}
+		this.resolveLocks(key, cacheEntry);
+		if (callback) {
+			callback(null, value);
+		}
+	};
 
 	/**
 	 * Delete
@@ -213,13 +254,13 @@ export default class CrispCache<T> extends EventEmitter {
 	async del(key: string): Promise<void>;
 	async del(key: string, options?: {skipLruDelete?: boolean}): Promise<void>;
 	async del(key: string, callback?: ErrorFirstValueCallback<T>): Promise<void>;
-	async del(key: string, options?: {skipLruDelete?: boolean}, callback?: ErrorFirstValueCallback<T>): Promise<void> {
+	async del(key: string, options?: {skipLruDelete?: boolean}, callback?: ErrorFirstBooleanCallback): Promise<void> {
 
 		if (this._lru && !options.skipLruDelete) {
 			this._lru.del(key, true);
 		}
 		await this.backend.del(key);
-		this._resolveLocks(key, undefined);
+		this.resolveLocks(key, undefined);
 		if (callback) {
 			return callback(null, true);
 		}
@@ -230,16 +271,11 @@ export default class CrispCache<T> extends EventEmitter {
 	 *
 	 * Fetches a key from the data provider, the via the provided fetch callable when this object was created.
 	 *
-	 * @param {string} key
-	 * @param {{}|function} options - An options object or a callback
-	 * @param {valueCb} [callback] - If options, an error first callback
-	 * @returns {Number|*}
 	 * @private
 	 */
-	private async fetch(key: string): Promise<CacheEntry<T>>
 	private async fetch(key: string,
-	                     options: {ttls: {stale: number, expires: number}, size?: number} = {ttls: {stale: 0, expires: 0}, size: 1}): Promise<CacheEntry<T>> {
-		const doneFetching = new Deferred();
+	                     options: {ttls: {stale: number, expires: number}, size?: number} = {ttls: {stale: 0, expires: 0}, size: 1}): Promise<T> {
+		const doneFetching = new Deferred<T>();
 
 		this.lock(key, doneFetching)
 			.then(() => {
@@ -259,7 +295,7 @@ export default class CrispCache<T> extends EventEmitter {
 						return;
 					});
 			});
-		return doneFetching;
+		return doneFetching.promise;
 	};
 
 
@@ -357,80 +393,39 @@ export default class CrispCache<T> extends EventEmitter {
 		}
 	};
 
-}
-
-function callbackify(promise, callback) {
-	if (typeof callback === 'function') {
-		return promise
-			.then(value => {
-				return callback(null, value);
-			})
-			.catch(err => {
-				return callback(err);
-			});
+	private getDefaultStaleTtl():number {
+		if (this.options.defaultTtls.staleVariance) {
+			return Math.round(this.options.defaultTtls.stale + (Math.random() * this.options.defaultTtls.staleVariance) - (this.options.defaultTtls.staleVariance / 2));
+		}
+		else {
+			return this.options.defaultTtls.stale;
+		}
 	}
-	return promise;
+
+	private getDefaultExpiresTtl():number {
+		if (this.options.defaultTtls.expiresVariance) {
+			return Math.round(this.options.defaultTtls.expires + (Math.random() * this.options.defaultTtls.expiresVariance) - (this.options.defaultTtls.expiresVariance / 2));
+		}
+		else {
+			return this.options.defaultTtls.expires;
+		}
+	}
+
 }
 
-class Deferred<T> implements Promise<T> {
+class Deferred<T> {
 
-	private promise:Promise<T>;
+	public promise:Promise<T>;
 	public resolve:(value: T | PromiseLike<T> | undefined) => void;
 	public reject:(reason?: any) => void;
-
-	public then:(result:T) => Promise<T>;
-	public catch: (onrejected: (reason: any) => T | PromiseLike<T>) => Promise<T>;
-	public [Symbol.toStringTag]: "Promise";
 
 	constructor() {
 		this.promise = new Promise<T>((resolve, reject)=> {
 			this.resolve = resolve;
 			this.reject = reject;
 		});
-
-		this.then = this.promise.then;
-		this.catch = this.promise.catch;
 	}
 }
-
-/**
- * Set
- *
- * Sets a value to a key.
- * @param {string} key
- * @param value
- * @param {{staleTtl:Number, expiresTtl:Number}}options
- * @param {valueCb} [callback]
- */
-CrispCache.prototype.set = function (key, value, options, callback) {
-	//Parse Args
-	debug("Set " + key + ": ", value);
-	if (typeof options === 'function' && !callback) {
-		callback = options;
-		options = {};
-	}
-	// Set default options
-	'staleTtl' in options || (options.staleTtl = this._getDefaultStaleTtl());
-	'expiresTtl' in options || (options.expiresTtl = this._getDefaultExpiresTtl());
-	'size' in options || (options.size = 1);
-
-	if (options.expiresTtl > 0) {
-		var cacheEntry = new CacheEntry({
-			value: value,
-			staleTtl: options.staleTtl,
-			expiresTtl: options.expiresTtl,
-			size: options.size
-		});
-		this.cache[key] = cacheEntry;
-		if (this._lru) {
-			this._lru.put(key, cacheEntry.size);
-		}
-	}
-	this._resolveLocks(key, value);
-	if (callback) {
-		callback(null, true);
-	}
-};
 
 /**
  * Clears the cache of all entries.
@@ -458,32 +453,7 @@ CrispCache.prototype.getUsage = function () {
 };
 
 
-/**
- * @returns {Number}
- * @private
- */
-CrispCache.prototype._getDefaultStaleTtl = function () {
-	if (this.staleTtlVariance) {
-		return Math.round(this.defaultStaleTtl + (Math.random() * this.staleTtlVariance) - (this.staleTtlVariance / 2));
-	}
-	else {
-		return this.defaultStaleTtl
-	}
-};
 
-/**
- *
- * @returns {Number}
- * @private
- */
-CrispCache.prototype._getDefaultExpiresTtl = function () {
-	if (this.expiresTtlVariance) {
-		return Math.round(this.defaultExpiresTtl + (Math.random() * this.expiresTtlVariance) - (this.expiresTtlVariance / 2));
-	}
-	else {
-		return this.defaultExpiresTtl
-	}
-};
 
 CrispCache.prototype.// Unique id for key-less CrispCache.wrap
 	var
