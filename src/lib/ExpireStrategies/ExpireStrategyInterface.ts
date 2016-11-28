@@ -1,6 +1,6 @@
 export interface ExpireStrategyInterface {
-	put(key:string, size:number):void;
-	del(key:string, skipDelCallback:boolean):void;
+	set(key:string, size:number):void;
+	delete(key:string, skipDelCallback:boolean):void;
 	clear():ExpireStrategyInterface;
 }
 
@@ -15,8 +15,8 @@ export abstract class AbstractExpireStrategy implements ExpireStrategyInterface 
 		this.delCallback = (options.delCallback ? options.delCallback : null);
 	};
 
-	abstract put(key:string, size:number):void;
-	abstract del(key:string, skipDelCallback:boolean):void;
+	abstract set(key:string, size:number):void;
+	abstract delete(key:string, skipDelCallback:boolean):void;
 	abstract clear():AbstractExpireStrategy;
 }
 

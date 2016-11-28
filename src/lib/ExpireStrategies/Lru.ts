@@ -20,7 +20,7 @@ export class Lru extends AbstractExpireStrategy {
 	/**
 	 * Adds an entry to the LRU
 	 */
-	public put(key: string, size: number): void {
+	public set(key: string, size: number): void {
 		let entry = new LruEntry(key, size);
 
 		this._moveToHead(entry);
@@ -35,7 +35,7 @@ export class Lru extends AbstractExpireStrategy {
 		}
 	}
 
-	public del(key: string, skipDelCallback: boolean = false): void {
+	public delete(key: string, skipDelCallback: boolean = false): void {
 		let cursor = this.hash[key];
 		if (cursor) {
 			if (cursor.newer) {

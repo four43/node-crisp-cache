@@ -1,7 +1,7 @@
 import {EventEmitter} from "events";
 import * as _ from "lodash";
 import {AbstractBackend, NextResult} from "./lib/Backends/AbstractBackend";
-import {Memory} from "./lib/Backends/Memory";
+import * as Memory from "./lib/Backends/Memory";
 import CacheEntry from "./lib/CacheEntry";
 
 export type CrispCacheConstructOptions<T> = {
