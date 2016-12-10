@@ -1,26 +1,42 @@
-import {AbstractBackend, NextResult} from "./AbstractBackend";
+import {AbstractBackend, NextResult} from "../AbstractBackend";
+import {AbstractMemoryExpireStrategy, MemoryExpireEvents} from "./ExpireStrategies/MemoryExpireStrategyInterface";
 
 export default class Memory<T> implements AbstractBackend<T> {
 
 	protected entries: Map<string, T>;
 	protected locks: {[id: string]: number};
+	protected expireStrategy: AbstractMemoryExpireStrategy;
 
-	constructor(opts?: any) {
+	constructor(opts: {expireStrategy: AbstractMemoryExpireStrategy}) {
 		this.entries = new Map<string, T>();
 		this.locks = {};
+		this.expireStrategy = opts.expireStrategy;
+		this.expireStrategy.on(MemoryExpireEvents.DELETE, this.delete.bind(this));
 	}
 
 	async get(key: string): Promise<T|undefined> {
+		this.expireStrategy.get(key);
 		return Promise.resolve(this.entries.get(key));
 	}
 
-	async set(key: string, value: T): Promise<T> {
+	async set(key: string, value: T, size: number = 1): Promise<T> {
+		this.expireStrategy.set(key, size);
 		this.entries.set(key, value);
 		return Promise.resolve(value);
 	}
 
-	async delete(key: string): Promise<void> {
+	async delete(key: string, options?: {skipExpireStrategyDelete: boolean}): Promise<void> {
+		if(!options || options.skipExpireStrategyDelete !== true) {
+			this.expireStrategy.delete(key, true);
+		}
 		this.entries.delete(key);
+		return Promise.resolve();
+	}
+
+	async clear(): Promise<void> {
+		this.entries = new Map<string, T>();
+		this.locks = {};
+		this.expireStrategy.clear();
 		return Promise.resolve();
 	}
 
@@ -58,5 +74,12 @@ export default class Memory<T> implements AbstractBackend<T> {
 			})
 		}
 		return Promise.resolve(null);
+	}
+
+	async getUsage(): Promise<{size:number, maxSize:number}> {
+		return Promise.resolve({
+			size: this.expireStrategy.size,
+			maxSize: this.expireStrategy.maxSize
+		});
 	}
 }

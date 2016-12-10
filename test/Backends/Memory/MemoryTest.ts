@@ -1,14 +1,19 @@
 import * as assert from 'assert';
-import Memory from '../../src/lib/Backends/Memory';
-import {NextResult} from "../../src/lib/Backends/AbstractBackend";
+import Memory from '../../../src/lib/Backends/Memory/Memory';
+import {NextResult} from "../../../src/lib/Backends/AbstractBackend";
 import * as sinon from 'sinon';
+import {Lru} from "../../../src/lib/Backends/Memory/ExpireStrategies/Lru";
 
 describe("Backend - Memory", () => {
 
 	let backend: Memory<string>;
 	let clock:Sinon.SinonFakeTimers;
 	beforeEach(() => {
-		backend = new Memory<string>();
+		backend = new Memory<string>({
+			expireStrategy: new Lru({
+				maxSize: Infinity
+			})
+		});
 		clock = sinon.useFakeTimers();
 	});
 
@@ -130,5 +135,53 @@ describe("Backend - Memory", () => {
 			await backend.unlock("a");
 			assert.equal(await backend.lock("a"), true);
 		});
+	});
+
+	describe("Expiration Integration", () => {
+		beforeEach(() => {
+			backend = new Memory<string>({
+				expireStrategy: new Lru({
+					maxSize: 5
+				})
+			});
+		});
+
+		it("should keep all values when below maxSize", async(): Promise<void> => {
+			await backend.set("a", "hello world", 1);
+			await backend.set("b", "foo", 1);
+			await backend.set("c", "bar", 1);
+
+			let valA = await backend.get("a");
+			assert.equal(valA, "hello world");
+
+			let valB = await backend.get("b");
+			assert.equal(valB, "foo");
+
+			let valC = await backend.get("c");
+			assert.equal(valC, "bar");
+		});
+
+		it("should delete the least recently set", async(): Promise<void> => {
+			await backend.set("a", "hello world", 2);
+			await backend.set("b", "foo", 2);
+			await backend.set("c", "bar", 2);
+
+			let valA = await backend.get("a");
+			assert.equal(valA, undefined);
+		});
+
+		it("should delete the least recently used", async(): Promise<void> => {
+			await backend.set("a", "hello world", 2);
+			await backend.set("b", "foo", 2);
+			await backend.get("a");
+			await backend.set("c", "bar", 2);
+
+			let valA = await backend.get("a");
+			assert.equal(valA, "hello world");
+
+			let valB = await backend.get("b");
+			assert.equal(valB, undefined);
+		});
+
 	})
 });

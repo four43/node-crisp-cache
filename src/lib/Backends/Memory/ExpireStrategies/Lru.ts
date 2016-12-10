@@ -1,7 +1,7 @@
-import {AbstractExpireStrategy, ExpireOptions} from "./ExpireStrategyInterface";
+import {AbstractMemoryExpireStrategy, ExpireOptions, MemoryExpireEvents} from "./MemoryExpireStrategyInterface";
 
 
-export class Lru extends AbstractExpireStrategy {
+export class Lru extends AbstractMemoryExpireStrategy {
 
 	public head: LruEntry|null = null;
 	public tail: LruEntry|null = null;
@@ -17,6 +17,13 @@ export class Lru extends AbstractExpireStrategy {
 		super(options);
 	}
 
+	public get(key: string) {
+		let entry = this.hash[key];
+		if(entry) {
+			this._moveToHead(entry);
+		}
+	}
+
 	/**
 	 * Adds an entry to the LRU
 	 */
@@ -30,12 +37,12 @@ export class Lru extends AbstractExpireStrategy {
 		}
 
 		// See if size > maxSize
-		while (this.size > this.maxSize) {
+		while (this._size > this._maxSize) {
 			this.shift();
 		}
 	}
 
-	public delete(key: string, skipDelCallback: boolean = false): void {
+	public delete(key: string, skipParentDelete: boolean = false): void {
 		let cursor = this.hash[key];
 		if (cursor) {
 			if (cursor.newer) {
@@ -60,9 +67,9 @@ export class Lru extends AbstractExpireStrategy {
 				// This was the tail
 				this.tail = cursor.newer;
 			}
-			this.size -= cursor.size;
-			if (!skipDelCallback && typeof this.delCallback === "function") {
-				this.delCallback(key, {skipLruDelete: true});
+			this._size -= cursor.size;
+			if (!skipParentDelete) {
+				this.emit(MemoryExpireEvents.DELETE, key, {skipExpireStrategyDelete: true});
 			}
 			delete this.hash[key];
 		}
@@ -76,7 +83,7 @@ export class Lru extends AbstractExpireStrategy {
 		const tailToShift = this.tail;
 		if (tailToShift) {
 			delete this.hash[tailToShift.key];
-			this.size -= tailToShift.size;
+			this._size -= tailToShift.size;
 			if (this.head) {
 				if (tailToShift.key == this.head.key) {
 					this.head = null;
@@ -89,9 +96,7 @@ export class Lru extends AbstractExpireStrategy {
 			else {
 				this.tail = null;
 			}
-			if (this.delCallback) {
-				this.delCallback(tailToShift.key, {skipLruDelete: true});
-			}
+			this.emit(MemoryExpireEvents.DELETE, tailToShift.key, {skipExpireStrategyDelete: true});
 		}
 	}
 
@@ -100,11 +105,10 @@ export class Lru extends AbstractExpireStrategy {
 	 *
 	 * @returns {Lru}
 	 */
-	public clear(): Lru {
+	public clear(): void {
 		while (this.tail) {
 			this.shift();
 		}
-		return this;
 	}
 
 	public toString(): string {
@@ -117,7 +121,7 @@ export class Lru extends AbstractExpireStrategy {
 		if (cursor) {
 			keys.push(cursor.key);
 		}
-		return "Size: " + this.size + "/" + this.maxSize + ", Head: " + keys.join(' -> ') + " :Tail";
+		return "Size: " + this._size + "/" + this._maxSize + ", Head: " + keys.join(' -> ') + " :Tail";
 	}
 
 	/**
@@ -129,7 +133,7 @@ export class Lru extends AbstractExpireStrategy {
 
 		// Ensure we don't have the key in the cache already.
 		if (this.head !== null) {
-			this.del(key, true);
+			this.delete(key, true);
 			if (this.head) {
 				this.head.newer = entry;
 				entry.older = this.head;
@@ -137,7 +141,7 @@ export class Lru extends AbstractExpireStrategy {
 		}
 
 		this.head = entry;
-		this.size += entry.size;
+		this._size += entry.size;
 		this.hash[key] = entry;
 	}
 }
