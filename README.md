@@ -47,7 +47,7 @@ crispCacheBasic = new CrispCache({
         expires: 1000000
     }
 });
-// Get a value, call the fetcher if we don't have it (which we don't at this point)
+fetcherCb
 crispCacheBasic.get('foo', function (err, value) {
     if (!err) {
         console.log("Got 'foo', is: " + value); // Outputs: Got 'foo', is: bar
@@ -60,8 +60,8 @@ crispCacheBasic.get('foo')
     )
     .catch(err => console.error(err))
 
-// Set something outside of the fetcher if we want
-crispCacheBasic.set('new', 'A new value, not from fetcher', function (err, success) {
+fetcherCb
+crispCacheBasic.set('new', fetcherCb, function (err, success) {
     if (success) {
         console.log("Set 'new' to our provided string.");
     }

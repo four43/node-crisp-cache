@@ -1,7 +1,7 @@
 import * as assert from 'assert';
-import {Lru} from  '../../../../src/lib/Backends/Memory/ExpireStrategies/Lru';
+import {Lru} from  '../../../../../src/lib/Backends/Memory/ExpireStrategies/Lru';
 import * as sinon from 'sinon';
-import {MemoryExpireEvents} from "../../../../src/lib/Backends/Memory/ExpireStrategies/MemoryExpireStrategyInterface";
+import {MemoryExpireEvents} from "../../../../../src/lib/Backends/Memory/ExpireStrategies/MemoryExpireStrategyInterface";
 
 describe("LRU", function () {
 

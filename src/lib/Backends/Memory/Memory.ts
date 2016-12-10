@@ -1,7 +1,7 @@
-import {AbstractBackend, NextResult} from "../AbstractBackend";
+import {IBackend, NextResult} from "../BackendInterface";
 import {AbstractMemoryExpireStrategy, MemoryExpireEvents} from "./ExpireStrategies/MemoryExpireStrategyInterface";
 
-export default class Memory<T> implements AbstractBackend<T> {
+export default class Memory<T> implements IBackend<T> {
 
 	protected entries: Map<string, T>;
 	protected locks: {[id: string]: number};

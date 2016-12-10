@@ -1,6 +1,6 @@
 import {EventEmitter} from "events";
 import * as _ from "lodash";
-import {AbstractBackend, NextResult} from "./lib/Backends/AbstractBackend";
+import {IBackend, NextResult} from "./lib/Backends/BackendInterface";
 import CacheEntry from "./lib/CacheEntry";
 import {Lru} from "./lib/Backends/Memory/ExpireStrategies/Lru";
 import Memory from "./lib/Backends/Memory/Memory";
@@ -18,7 +18,7 @@ export type CrispCacheConstructOptions<T> = {
 		stale?: number,
 		expires?: number
 	},
-	backend?: AbstractBackend<CacheEntry<T>>,
+	backend?: IBackend<CacheEntry<T>>,
 	emitEvents?: boolean,
 	events?: {[id: string]: GeneralErrorFirstCallback}
 };
@@ -79,7 +79,7 @@ export default class CrispCache<T> extends EventEmitter {
 
 	public options: CrispCacheOptions<T>;
 	public fetcher: {(key: string): Promise<T>};
-	public backend: AbstractBackend<CacheEntry<T>>;
+	public backend: IBackend<CacheEntry<T>>;
 	public locks: {[id: string]: Deferred<T>[]} = {};
 
 	public static keyIdCounter: number = 0;
@@ -116,10 +116,10 @@ export default class CrispCache<T> extends EventEmitter {
 
 		//Fetcher
 		if (!opts.fetcher) {
-			throw new Error("Must pass a fetcher option, a fetcher is a function(key, callback) that can retrieve a key from a repository");
+			throw new Error("Must pass a fetcherCb option, a fetcherCb is a function(key, callback) that can retrieve a key from a repository");
 		}
 
-		// Wrap the fetcher with error handling, and convert to a promise if it isn't already.
+		// Wrap the fetcherCb with error handling, and convert to a promise if it isn't already.
 		// Additional care to catch synchronous errors
 		this.fetcher = function (key: string) {
 			return new Promise((res, rej) => {
@@ -168,7 +168,7 @@ export default class CrispCache<T> extends EventEmitter {
 
 		const cacheEntry = await this.backend.get(key);
 		let value: T|undefined;
-		if (cacheEntry === null || (options && options.forceFetch)) {
+		if (cacheEntry === undefined || (options && options.forceFetch)) {
 			//Cache miss.
 			this._emit(CrispCache.EVENTS.MISS, {key: key});
 			if (options && options.skipFetch) {
@@ -291,7 +291,7 @@ export default class CrispCache<T> extends EventEmitter {
 	//
 	// 	options = setDefaultWrapOptions<T>(options);
 	//
-	// 	const fetcher = (key: string): Promise<T> => {
+	// 	const fetcherCb = (key: string): Promise<T> => {
 	// 		let args, wrapperCb;
 	// 		try {
 	// 			args = options.parseKey(key);
@@ -330,7 +330,7 @@ export default class CrispCache<T> extends EventEmitter {
 	// 	const cacheOptions: {
 	// 		createKey: {(...args: any[]): string},
 	// 		parseKey: {(key: string): any[]},
-	// 		fetcher?: Promise<T>
+	// 		fetcherCb?: Promise<T>
 	// 	} = {
 	// 		createKey: options.createKey,
 	// 		parseKey: options.parseKey
@@ -389,7 +389,7 @@ export default class CrispCache<T> extends EventEmitter {
 					}
 				});
 			} catch (err) {
-				// @todo do more with the fetcher error
+				// @todo do more with the fetcherCb error
 				this.resolveLocks(key, undefined, err);
 			}
 		}

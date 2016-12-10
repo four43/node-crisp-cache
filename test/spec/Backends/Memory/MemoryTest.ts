@@ -1,8 +1,8 @@
 import * as assert from 'assert';
-import Memory from '../../../src/lib/Backends/Memory/Memory';
-import {NextResult} from "../../../src/lib/Backends/AbstractBackend";
+import Memory from '../../../../src/lib/Backends/Memory/Memory';
+import {NextResult} from "../../../../src/lib/Backends/BackendInterface";
 import * as sinon from 'sinon';
-import {Lru} from "../../../src/lib/Backends/Memory/ExpireStrategies/Lru";
+import {Lru} from "../../../../src/lib/Backends/Memory/ExpireStrategies/Lru";
 
 describe("Backend - Memory", () => {
 
