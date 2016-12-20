@@ -21,20 +21,20 @@ describe("LRU", function () {
 		describe("Head ops", function () {
 			it("Should set the head", function () {
 				lru.set('a', 1);
-				assert.equal(lru.head.key, 'a');
+				assertHead(lru, 'a');
 			});
 
 			it("Should replace the head", function () {
 				lru.set('a', 1);
 				lru.set('a', 2);
-				assert.equal(lru.head.key, 'a');
+				assertHead(lru, 'a');
 			});
 
 			it("Should set the head after multiple adds", function () {
 				lru.set('a', 1);
 				lru.set('b', 2);
 				lru.set('c', 3);
-				assert.equal(lru.head.key, 'c');
+				assertHead(lru, 'c');
 			});
 
 			it("Should set the head after multiple adds, mixed order", function () {
@@ -42,7 +42,7 @@ describe("LRU", function () {
 				lru.set('b', 3);
 				lru.set('c', 2);
 				lru.set('b', 1);
-				assert.equal(lru.head.key, 'b');
+				assertHead(lru, 'b');
 			});
 
 			it("Should set the head after multiple adds, mixed order", function () {
@@ -50,21 +50,21 @@ describe("LRU", function () {
 				lru.set('b', 3);
 				lru.set('c', 2);
 				lru.set('b', 1);
-				assert.equal(lru.head.key, 'b');
+				assertHead(lru, 'b');
 			});
 		});
 
 		describe("Tail ops", function () {
 			it("Should set the tail", function () {
 				lru.set('a', 1);
-				assert.equal(lru.tail.key, 'a');
+				assertTail(lru, 'a');
 			});
 
 			it("Should set the tail after multiple adds", function () {
 				lru.set('a', 1);
 				lru.set('b', 1);
 				lru.set('c', 1);
-				assert.equal(lru.tail.key, 'a');
+				assertTail(lru, 'a');
 			});
 
 			it("Should set the tail after multiple adds, mixed order", function () {
@@ -72,7 +72,7 @@ describe("LRU", function () {
 				lru.set('b', 1);
 				lru.set('c', 1);
 				lru.set('b', 1);
-				assert.equal(lru.tail.key, 'a');
+				assertTail(lru, 'a');
 			});
 
 			it("Should set the tail after multiple adds, last", function () {
@@ -80,7 +80,7 @@ describe("LRU", function () {
 				lru.set('b', 1);
 				lru.set('c', 1);
 				lru.set('a', 1);
-				assert.equal(lru.tail.key, 'b');
+				assertTail(lru, 'b');
 			});
 		});
 
@@ -165,8 +165,8 @@ describe("LRU", function () {
 				lru.set('b', 5);
 				lru.set('c', 5);
 				assert.equal(delSpy.callCount, 1);
-				assert.equal(lru.head.key, 'c');
-				assert.equal(lru.tail.key, 'b');
+				assertHead(lru, 'c');
+				assertTail(lru, 'b');
 				assert.equal(lru.size, 10);
 			});
 
@@ -175,8 +175,8 @@ describe("LRU", function () {
 				lru.set('b', 2);
 				lru.set('c', 3);
 				assert.equal(delSpy.callCount, 0);
-				assert.equal(lru.head.key, 'c');
-				assert.equal(lru.tail.key, 'a');
+				assertHead(lru, 'c');
+				assertTail(lru, 'a');
 				assert.equal(lru.size, 6);
 			});
 
@@ -185,8 +185,8 @@ describe("LRU", function () {
 				lru.set('b', 5);
 				lru.set('c', 10);
 				assert.equal(delSpy.callCount, 2);
-				assert.equal(lru.head.key, 'c');
-				assert.equal(lru.tail.key, 'c');
+				assertHead(lru, 'c');
+				assertTail(lru, 'c');
 				assert.equal(lru.size, 10);
 			});
 
@@ -195,8 +195,8 @@ describe("LRU", function () {
 				lru.set('b', 8);
 				lru.set('c', 5);
 				assert.equal(delSpy.callCount, 2);
-				assert.equal(lru.head.key, 'c');
-				assert.equal(lru.tail.key, 'c');
+				assertHead(lru, 'c');
+				assertTail(lru, 'c');
 				assert.equal(lru.size, 5);
 			});
 		})
@@ -208,7 +208,7 @@ describe("LRU", function () {
 			lru.set('b', 1);
 			lru.set('c', 1);
 			lru.delete('b');
-			assert.equal(lru.head.key, 'c');
+			assertHead(lru, 'c');
 			assert.equal(delSpy.callCount, 1);
 		});
 
@@ -217,7 +217,7 @@ describe("LRU", function () {
 			lru.set('b', 1);
 			lru.set('c', 1);
 			lru.delete('c');
-			assert.equal(lru.head.key, 'b');
+			assertHead(lru, 'b');
 			assert.equal(delSpy.callCount, 1);
 		});
 
@@ -226,7 +226,7 @@ describe("LRU", function () {
 			lru.set('b', 1);
 			lru.set('c', 1);
 			lru.delete('a');
-			assert.equal(lru.tail.key, 'b');
+			assertTail(lru, 'b');
 			assert.equal(delSpy.callCount, 1);
 		});
 	});
@@ -237,8 +237,8 @@ describe("LRU", function () {
 			lru.set('b', 2);
 			lru.shift();
 			assert.equal(delSpy.callCount, 1);
-			assert.equal(lru.head.key, 'b');
-			assert.equal(lru.tail.key, 'b');
+			assertHead(lru, 'b');
+			assertTail(lru, 'b');
 			assert.equal(lru.size, 2);
 		});
 
@@ -257,8 +257,8 @@ describe("LRU", function () {
 			lru.set('c', 3);
 			lru.shift();
 			assert.equal(delSpy.callCount, 1);
-			assert.equal(lru.head.key, 'c');
-			assert.equal(lru.tail.key, 'b');
+			assertHead(lru, 'c');
+			assertTail(lru, 'b');
 			assert.equal(lru.size, 5);
 		});
 	});
@@ -285,3 +285,21 @@ describe("LRU", function () {
 		});
 	})
 });
+
+function assertHead(lru:Lru, value:any) {
+	if(lru.head) {
+		assert.equal(lru.head.key, value);
+	}
+	else {
+		throw new Error("LRU head wasn't an object");
+	}
+}
+
+function assertTail(lru:Lru, value:any) {
+	if(lru.tail) {
+		assert.equal(lru.tail.key, value);
+	}
+	else {
+		throw new Error("LRU tail wasn't an object");
+	}
+}
