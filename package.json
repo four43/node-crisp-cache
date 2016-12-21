@@ -4,8 +4,8 @@
   "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
   "main": "main.js",
   "scripts": {
-    "test": "mocha --expose-gc -R spec --compilers ts:./test/ts-node-test.js,tsx:./test/ts-node-test.js ./test/*",
-    "build": "tsc",
+    "test": "mocha --expose-gc -R spec --compilers ts:ts-node/register,tsx:ts-node/register ./test/spec",
+    "build": "tsc -d",
     "#comment": "Can't run coverage over memory tests, --expose-gc is not available.",
     "coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec --grep 'memory' -i ./test/*",
     "coveralls": "npm run coverage && coveralls < coverage/lcov.info"

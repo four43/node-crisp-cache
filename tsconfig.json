@@ -10,7 +10,7 @@
 		"strictNullChecks": true,
 		"sourceMap": true,
 
-		"outDir": "./built"
+		"outDir": "./dist"
 	},
 	"include": [
 		"./src/**/*",

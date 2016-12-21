@@ -7,6 +7,7 @@ import Memory from "./lib/Backends/Memory/Memory";
 
 export type CrispCacheConstructOptions<T> = {
 	fetcher: {(key: string, cb: ErrorFirstValueCallback<T>): void}|FetcherProimse<T>,
+	fetchTimeout?: number,
 	maxSize: number,
 	defaultTtls?: {
 		stale?: number,
@@ -19,10 +20,10 @@ export type CrispCacheConstructOptions<T> = {
 		expires?: number
 	},
 	backend?: IBackend<CacheEntry<T>>,
-	emitEvents?: boolean,
 	events?: {[id: string]: GeneralErrorFirstCallback}
 };
 export type CrispCacheOptions<T> = {
+	fetchTimeout: number,
 	defaultTtls: {
 		stale: number,
 		staleVariance: number,
@@ -32,12 +33,11 @@ export type CrispCacheOptions<T> = {
 	checkIntervals: {
 		stale: number,
 		expires: number
-	},
-	emitEvents: boolean
+	}
 };
 export type GeneralErrorFirstCallback = {(error: Error|null, result: any): void};
 export type ErrorFirstBooleanCallback = {(error: Error|null, result: boolean): void};
-export type ErrorFirstValueCallback<T> = {(error: Error|null, result: T|undefined): void};
+export type ErrorFirstValueCallback<T> = {(error: Error|null, result?: T|undefined): void};
 
 type GetOptions = {
 	forceFetch?: boolean,
@@ -57,16 +57,7 @@ type WrapOptions<T> = Partial<CrispCacheConstructOptions<T>> & {
 	parseKey: {(key: string): any[]}
 }
 
-export class CrispCacheEvents {
-	static readonly HIT = 'hit';
-	static readonly MISS = 'miss';
-	static readonly FETCH = 'fetch';
-	static readonly FETCH_DONE = 'fetch_done';
-	static readonly STALE_CHECK = 'stale_check';
-	static readonly STALE_CHECK_DONE = 'stale_check_done';
-	static readonly EXPIRES_CHECK = 'expires_check';
-	static readonly EXPIRES_CHECK_DONE = 'expires_check_done';
-}
+export type CrispCacheEvents = 'hit' | 'miss' | 'fetch' | 'fetch_done' | 'stale_check' | 'stale_check_done' | 'expires_check' | 'expires_check_done';
 
 /**
  * @param {{}} opts
@@ -84,11 +75,10 @@ export default class CrispCache<T> extends EventEmitter {
 
 	public static keyIdCounter: number = 0;
 
-	public static EVENTS = CrispCacheEvents;
-
 	constructor(opts: CrispCacheConstructOptions<T>) {
 		super();
 		this.options = _.defaultsDeep<CrispCacheConstructOptions<T>,CrispCacheOptions<T>>(opts, {
+			fetchTimeout: 3000,
 			defaultTtls: {
 				stale: 300000,
 				staleVariance: 50000,
@@ -98,8 +88,7 @@ export default class CrispCache<T> extends EventEmitter {
 			checkIntervals: {
 				stale: 100000,
 				expires: 1000000
-			},
-			emitEvents: false
+			}
 		});
 		if (opts.backend) {
 			this.backend = opts.backend;
@@ -150,7 +139,7 @@ export default class CrispCache<T> extends EventEmitter {
 		}
 
 		//Bind to user supplied events
-		if (this.options.emitEvents && opts.events) {
+		if (opts.events) {
 			bindEventMap(opts.events, this);
 		}
 	}
@@ -158,61 +147,69 @@ export default class CrispCache<T> extends EventEmitter {
 	// @todo figure out function overloading
 	async get(key: string, options?: GetOptions | ErrorFirstValueCallback<T>, callback?: ErrorFirstValueCallback<T>): Promise<T|undefined> {
 
-		if(isValueCallback<T, GetOptions>(options)) {
+		if (isValueCallback<T, GetOptions>(options)) {
 			callback = options;
 			options = {};
 		}
-		if(options === undefined) {
+		if (options === undefined) {
 			options = {};
 		}
 
-		const cacheEntry = await this.backend.get(key);
-		let value: T|undefined;
-		if (cacheEntry === undefined || (options && options.forceFetch)) {
-			//Cache miss.
-			this._emit(CrispCache.EVENTS.MISS, {key: key});
-			if (options && options.skipFetch) {
-				value = undefined;
-			}
-			else {
-				value = await this.fetch(key);
-			}
-		}
-		else {
-			//Cache hit, what is the state?
-			if (cacheEntry.isValid()) {
-				this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
-				value = cacheEntry.value;
-			}
-			else if (cacheEntry.isStale()) {
-				//Stale, try and update the cache but return what we have.
-				this._emit(CrispCache.EVENTS.HIT, {key: key, entry: cacheEntry});
-
-				this.fetch(key, {
-					ttls: cacheEntry.ttls,
-					size: cacheEntry.size || 1
-				});
-				value = cacheEntry.value;
-			}
-			else if (cacheEntry.isExpired()) {
-				this._emit(CrispCache.EVENTS.MISS, {key: key, entry: cacheEntry});
+		try {
+			const cacheEntry = await this.backend.get(key);
+			let value: T|undefined;
+			if (cacheEntry === undefined || (options && options.forceFetch)) {
+				//Cache miss.
+				this._emit('miss', {key: key});
 				if (options && options.skipFetch) {
-					//Don't re-fetch
-					this.delete(key);
 					value = undefined;
 				}
 				else {
-					//Fetch this key
-					value = await this.fetch(key, {
-						ttls: cacheEntry.ttls
-					});
+					value = await this.fetch(key);
 				}
 			}
+			else {
+				//Cache hit, what is the state?
+				if (cacheEntry.isValid()) {
+					this._emit('hit', {key: key, entry: cacheEntry});
+					value = cacheEntry.value;
+				}
+				else if (cacheEntry.isStale()) {
+					//Stale, try and update the cache but return what we have.
+					this._emit('hit', {key: key, entry: cacheEntry});
+
+					this.fetch(key, {
+						ttls: cacheEntry.ttls,
+						size: cacheEntry.size || 1
+					});
+					value = cacheEntry.value;
+				}
+				else if (cacheEntry.isExpired()) {
+					this._emit('miss', {key: key, entry: cacheEntry});
+					if (options && options.skipFetch) {
+						//Don't re-fetch
+						this.delete(key);
+						value = undefined;
+					}
+					else {
+						//Fetch this key
+						value = await this.fetch(key, {
+							ttls: cacheEntry.ttls
+						});
+					}
+				}
+			}
+			if (callback) {
+				callback(null, value);
+			}
+			return value;
 		}
-		if (callback) {
-			callback(null, value);
+		catch (err) {
+			if (callback) {
+				callback(err);
+			}
+			throw err;
 		}
-		return value;
 	}
 
 	async set(key: string, value: T, options: {ttls: {stale?: number, expires?: number}, size?: number} = {
@@ -276,7 +273,7 @@ export default class CrispCache<T> extends EventEmitter {
 
 		const cache = new CrispCache(<CrispCacheConstructOptions<T>>options);
 
-		return (...args:any[]):Promise<T> => {
+		return (...args: any[]): Promise<T> => {
 			let key = cacheOptions.createKey.apply(null, args);
 
 			if (Object.prototype.toString.call(key) !== '[object String]') {
@@ -377,10 +374,10 @@ export default class CrispCache<T> extends EventEmitter {
 		const doneFetching = new Deferred<T>();
 
 		if (await this.lock(key, doneFetching)) {
-			this._emit(CrispCache.EVENTS.FETCH, {key: key});
+			this._emit('fetch', {key: key});
 			try {
 				const value = await this.fetcher(key);
-				this._emit(CrispCache.EVENTS.FETCH_DONE, {key: key, value: value});
+				this._emit('fetch_done', {key: key, value: value});
 				// Set resolves locks for us
 				this.set(key, value, {
 					ttls: {
@@ -407,15 +404,13 @@ export default class CrispCache<T> extends EventEmitter {
 	 * @private
 	 */
 	private async lock(key: string, resultDeferred: Deferred<T>): Promise<boolean> {
-		if (await this.backend.lock) {
-			// Lock acquired
-			this.locks[key] = [resultDeferred];
-			return true;
+		if (this.locks[key]) {
+			this.locks[key].push(resultDeferred);
 		}
 		else {
-			this.locks[key].push(resultDeferred);
-			return false;
+			this.locks[key] = [resultDeferred];
 		}
+		return await this.backend.lock(key, this.options.fetchTimeout);
 	};
 
 	/**
@@ -428,7 +423,7 @@ export default class CrispCache<T> extends EventEmitter {
 		if (this.locks[key]) {
 			//Clear out anyone waiting on this key.
 			if (err) {
-				this.locks[key].map(deferred => deferred.reject(value));
+				this.locks[key].map(deferred => deferred.reject(err));
 			}
 			else {
 				this.locks[key].map(deferred => deferred.resolve(value));
@@ -445,7 +440,7 @@ export default class CrispCache<T> extends EventEmitter {
 	 * @private
 	 */
 	private async staleCheck() {
-		this._emit(CrispCacheEvents.STALE_CHECK);
+		this._emit('stale_check');
 
 		const refetchKeys: string[] = [];
 		let cursorResult: NextResult<CacheEntry<T>>|null = await this.backend.next();
@@ -458,7 +453,7 @@ export default class CrispCache<T> extends EventEmitter {
 			}
 		}
 
-		this._emit(CrispCacheEvents.STALE_CHECK_DONE, refetchKeys);
+		this._emit('stale_check_done', refetchKeys);
 	};
 
 	/**
@@ -468,7 +463,7 @@ export default class CrispCache<T> extends EventEmitter {
 	 * @private
 	 */
 	private async expiresCheck() {
-		this._emit(CrispCacheEvents.EXPIRES_CHECK);
+		this._emit('expires_check');
 
 		const expiredKeys: string[] = [];
 		let cursorResult: NextResult<CacheEntry<T>>|null = await this.backend.next();
@@ -480,13 +475,11 @@ export default class CrispCache<T> extends EventEmitter {
 			}
 		}
 
-		this._emit(CrispCacheEvents.EXPIRES_CHECK_DONE, expiredKeys);
+		this._emit('expires_check_done', expiredKeys);
 	};
 
 	private _emit(name: CrispCacheEvents, options?: any) {
-		if (this.options.emitEvents) {
-			this.emit(name.toString(), options);
-		}
+		this.emit(name, options);
 	};
 
 	private getDefaultStaleTtl(): number {
