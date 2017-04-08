@@ -486,7 +486,7 @@ CrispCache.wrap = function(origFn, options) {
 
     cache = new CrispCache(options);
 
-    return function() {
+    const wrapFunc = function() {
         var args = Array.prototype.slice.call(arguments, 0);
         var cb = args.pop();
         var key = options.createKey.apply(null, args);
@@ -497,6 +497,8 @@ CrispCache.wrap = function(origFn, options) {
 
         cache.get(key, cb);
     }
+	wrapFunc._cache = cache;
+    return wrapFunc;
 };
 
 /**

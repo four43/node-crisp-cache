@@ -384,28 +384,28 @@ describe("CrispCache", function () {
                 defaultExpiresTtl: 500
             });
 
-			crispCacheBadFetcher.get('hello', function (err, value) {
+            crispCacheBadFetcher.get('hello', function (err, value) {
                 assert.equal(err, null);
                 assert.equal(value, 1);
-				clock.tick(400);
-				crispCacheBadFetcher.get('hello', function (err, value) {
-					assert.ifError(err);
-					process.nextTick(function() {
-						assert.equal(badFetcherSpy.callCount, 2);
-						assert.equal(value, 1);
-						clock.tick(50);
-						crispCacheBadFetcher.get('hello', function (err, value) {
-							assert.ifError(err);
-							process.nextTick(function() {
-								assert.equal(badFetcherSpy.callCount, 3);
-								assert.equal(value, 1);
-								done();
-							});
-						});
-					});
+                clock.tick(400);
+                crispCacheBadFetcher.get('hello', function (err, value) {
+                    assert.ifError(err);
+                    process.nextTick(function() {
+                        assert.equal(badFetcherSpy.callCount, 2);
+                        assert.equal(value, 1);
+                        clock.tick(50);
+                        crispCacheBadFetcher.get('hello', function (err, value) {
+                            assert.ifError(err);
+                            process.nextTick(function() {
+                                assert.equal(badFetcherSpy.callCount, 3);
+                                assert.equal(value, 1);
+                                done();
+                            });
+                        });
+                    });
                 });
             });
-			clock.tick(10);
+            clock.tick(10);
         });
 
         it("Should only fetch once for 2 cache misses (locking)", function (done) {
@@ -1439,6 +1439,25 @@ describe("CrispCache", function () {
             assert.throws(function() { cached() }, /callback/);
 
             done();
+        });
+
+        it('should wrap a function and expose the underlying cache', function(done) {
+            var orig = sinon.spy(function(a, b, c, cb) {
+                cb(null, 'RETURN VAL');
+            });
+            var cached = CrispCache.wrap(orig, {
+                createKey: function(a, b, c) { return [a, b, c].join('__'); },
+                parseKey: function(key) { return key.split('__'); },
+                defaultExpiresTtl: 1000
+            });
+           
+            assert.ok(cached._cache instanceof CrispCache);
+            cached._cache.set('1__2__3', 'hello', function (err) {
+                cached(1,2,3, function(err, result) {
+                    assert.equal(result, 'hello');
+                    done();
+                })
+            })
         });
 
     });
