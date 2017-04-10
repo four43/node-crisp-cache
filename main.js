@@ -273,7 +273,7 @@ CrispCache.prototype.clear = function (callback) {
 
 /**
  *
- * @param options
+ * @param {{}} [options={}]
  * @param {number} [options.keysLimit=0] enable key metrics if > 0
  * @returns {*}
  */
@@ -287,20 +287,23 @@ CrispCache.prototype.getUsage = function (options) {
 		this.stats.size = this._lru.size;
 		this.stats.maxSize = this._lru.maxSize;
 	}
-	this.stats.hitRatio = this.stats.get.hit / this.stats.get.miss;
-	this.stats.getSetRatio = this.stats.get.count / this.stats.set.count;
+	this.stats.hitRatio = this.stats.get.hit / this.stats.get.count;
+	this.stats.getSetRatio = this.stats.get.count / (this.stats.get.count + this.stats.set.count);
 
 	if (options.keysLimit > 0) {
 		var keyMetrics = [];
 		if (this._lru) {
 			keyMetrics = Object.keys(this.cache)
 				.map(function (key) {
-					var cacheEntry = Object.assign({}, this.cache[key]);
-					cacheEntry.key = key;
-					return this.cache[key]
+					if(this.cache[key].isValid()) {
+						var cacheEntry = Object.assign({}, this.cache[key]);
+						cacheEntry.key = key;
+						return cacheEntry;
+					}
+					return null;
 				}.bind(this))
 				.filter(function (cacheEntry) {
-					return cacheEntry.isValid();
+					return Boolean(cacheEntry);
 				}.bind(this))
 				.sort(function (cacheEntryA, cacheEntryB) {
 					return cacheEntryB.size - cacheEntryA.size
@@ -320,6 +323,9 @@ CrispCache.prototype.getUsage = function (options) {
 				}.bind(this))
 				.sort()
 				.slice(0, options.keysLimit)
+				.map(function(cacheEntryKey) {
+					return { key: cacheEntryKey }
+				})
 		}
 		this.stats.keys = keyMetrics;
 	}

@@ -337,6 +337,105 @@ describe("CrispCache", function () {
 
 	});
 
+	describe("getUsage", function() {
+
+		var crispCacheBasic,
+			fetcherSpy;
+
+		beforeEach(function () {
+			fetcherSpy = sinon.spy(fetcher);
+			crispCacheBasic = new CrispCache({
+				fetcher:           fetcherSpy,
+				defaultStaleTtl:   300,
+				defaultExpiresTtl: 500
+			})
+		});
+
+		it("Should update usage", function (done) {
+			async.waterfall([
+					function (callback) {
+						crispCacheBasic.set("testA", "The Value A", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.set("testB", "The Value B", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.get("testA", callback);
+					}
+				],
+				function (err, result) {
+					var usage = crispCacheBasic.getUsage();
+					assert.deepEqual(usage, {
+						size: null,
+						maxSize: null,
+						hitRatio: 1,
+						getSetRatio: 0.3333333333333333,
+						get: {
+							count: 1,
+							hit: 1,
+							miss: 0,
+							stale: 0
+						},
+						set: {
+							count: 2
+						},
+						keys: []
+					});
+					done();
+				});
+		});
+
+		it("Should update usage with options", function (done) {
+			async.waterfall([
+					function (callback) {
+						crispCacheBasic.set("testD", "The Value D", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.set("testC", "The Value C", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.set("testB", "The Value B", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.set("testA", "The Value A", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.get("testA", callback);
+					}
+				],
+				function (err, result) {
+					var usage = crispCacheBasic.getUsage({ keysLimit: 3 });
+					assert.deepEqual(usage, {
+						size: null,
+						maxSize: null,
+						hitRatio: 1,
+						getSetRatio: 0.2,
+						get: {
+							count: 1,
+							hit: 1,
+							miss: 0,
+							stale: 0
+						},
+						set: {
+							count: 4
+						},
+						keys: [
+							{
+								key: 'testA'
+							},
+							{
+								key: 'testB'
+							},
+							{
+								key: 'testC'
+							}
+						]
+					});
+					done();
+				});
+		});
+	});
+
 	describe("Get - Advanced", function () {
 
 		var clock,
@@ -1126,24 +1225,83 @@ describe("CrispCache", function () {
 			});
 		});
 
-		it("Should update usage", function (done) {
-			async.waterfall([
-					function (callback) {
-						crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
-					},
-					function (result, callback) {
-						crispCacheBasic.set("testB", "The Value B", {size: 4}, callback);
-					},
-					function (result, callback) {
-						crispCacheBasic.get("testA", callback);
-					}
-				],
-				function (err, result) {
-					var usage = crispCacheBasic.getUsage();
-					assert.equal(usage.size, 6);
-					assert.equal(usage.maxSize, 10);
-					done();
-				});
+		describe("getUsage with LRU", function() {
+			it("Should update usage", function (done) {
+				async.waterfall([
+						function (callback) {
+							crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
+						},
+						function (result, callback) {
+							crispCacheBasic.set("testB", "The Value B", {size: 4}, callback);
+						},
+						function (result, callback) {
+							crispCacheBasic.get("testA", callback);
+						}
+					],
+					function (err, result) {
+						var usage = crispCacheBasic.getUsage();
+						assert.deepEqual(usage, {
+							size: 6,
+							maxSize: 10,
+							hitRatio: 1,
+							getSetRatio: 0.3333333333333333,
+							get: {
+								count: 1,
+								hit: 1,
+								miss: 0,
+								stale: 0
+							},
+							set: {
+								count: 2
+							},
+							keys: []
+						});
+						done();
+					});
+			});
+
+			it("Should update usage with options", function (done) {
+				async.waterfall([
+						function (callback) {
+							crispCacheBasic.set("testA", "The Value A", {size: 2}, callback);
+						},
+						function (result, callback) {
+							crispCacheBasic.set("testB", "The Value B", {size: 4}, callback);
+						},
+						function (result, callback) {
+							crispCacheBasic.get("testA", callback);
+						}
+					],
+					function (err, result) {
+						var usage = crispCacheBasic.getUsage({ keysLimit: 2 });
+						assert.deepEqual(usage, {
+							size: 6,
+							maxSize: 10,
+							hitRatio: 1,
+							getSetRatio: 0.3333333333333333,
+							get: {
+								count: 1,
+								hit: 1,
+								miss: 0,
+								stale: 0
+							},
+							set: {
+								count: 2
+							},
+							keys: [
+								{
+									key: 'testB',
+									size: 4
+								},
+								{
+									key: 'testA',
+									size: 2
+								}
+							]
+						});
+						done();
+					});
+			});
 		});
 
 		it("Should default to size=1", function (done) {
