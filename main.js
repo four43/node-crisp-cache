@@ -55,6 +55,24 @@ function CrispCache(options) {
     this.cache = {};
     this.locks = {};
 
+    // All potential stats we could keep track of
+    this.stats = {
+        size: null,
+        maxSize: null,
+        hitRatio: 0,
+        getSetRatio: 0,
+        get: {
+            count: 0,
+            hit: 0,
+            miss: 0,
+            stale: 0
+        },
+        set: {
+            count: 0
+        },
+        keys: []
+    };
+
     this.emitEvents = options.emitEvents !== undefined ? options.emitEvents : true;
     //Bind to user supplied events
     if(this.emitEvents && options.events) {
@@ -82,6 +100,7 @@ CrispCache.EVENT_EVICT_CHECK_DONE = 'evictCheckDone';
 CrispCache.prototype.get = function (key, options, callback) {
     //Parse Args
     debug("Get " + key + "...");
+
     if (typeof options === 'function' && !callback) {
         callback = options;
         options = {};
@@ -90,9 +109,11 @@ CrispCache.prototype.get = function (key, options, callback) {
         throw new Error('Unable to retrieve "' + key + '" from cache: no callback provided');
     }
 
+    this.stats.get.count++;
     if (this.cache[key] === undefined || options.forceFetch) {
         //Cache miss.
         debug("- MISS");
+        this.stats.get.miss++;
 
         this._emit(CrispCache.EVENT_MISS, { key: key });
 
@@ -112,6 +133,8 @@ CrispCache.prototype.get = function (key, options, callback) {
 
         if (cacheEntry.isValid()) {
             debug("- Hit");
+            this.stats.get.hit++;
+
             this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
 
             if (this._lru) {
@@ -122,6 +145,10 @@ CrispCache.prototype.get = function (key, options, callback) {
         else if (cacheEntry.isStale()) {
             //Stale, try and update the cache but return what we have.
             debug("- Hit, Stale");
+
+            this.stats.get.hit++;
+            this.stats.get.stale++;
+
             this._emit(CrispCache.EVENT_HIT, { key: key, entry: cacheEntry });
 
             debug("- Stale, returning current value but re-fetching");
@@ -136,6 +163,8 @@ CrispCache.prototype.get = function (key, options, callback) {
         }
         else if (cacheEntry.isExpired()) {
             debug("- Hit, but expired");
+            this.stats.get.miss++;
+
             this._emit(CrispCache.EVENT_MISS, { key: key, entry: cacheEntry });
             if (options.skipFetch) {
                 //Don't re-fetch
@@ -179,6 +208,7 @@ CrispCache.prototype.set = function (key, value, options, callback) {
     'size' in options || (options.size = 1);
 
     if (options.expiresTtl > 0) {
+        this.stats.set.count++;
         var cacheEntry = new CacheEntry({
             value: value,
             staleTtl: options.staleTtl,
@@ -237,14 +267,60 @@ CrispCache.prototype.clear = function(callback) {
     return callback(null, true);
 };
 
-CrispCache.prototype.getUsage = function() {
+/**
+ *
+ * @param options
+ * @param {number} [options.keysLimit=0] enable key metrics if > 0
+ * @returns {*}
+ */
+CrispCache.prototype.getUsage = function(options) {
+    options = Object.assign({
+        keysLimit: 0
+    }, options || {});
+
+    // Update our stats object
     if(this._lru) {
-        return {
-            size:    this._lru.size,
-            maxSize: this._lru.maxSize
-        }
+        this.stats.size = this._lru.size;
+        this.stats.maxSize = this._lru.maxSize;
     }
-    return {};
+    this.stats.hitRatio = this.stats.get.hit / this.stats.get.miss;
+    this.stats.getSetRatio = this.stats.get.count / this.stats.set.count;
+
+    if(options.keysLimit > 0) {
+        var keyMetrics = [];
+        if(this._lru) {
+            keyMetrics = Object.keys(this.cache)
+                .map(function(key) {
+                    var cacheEntry = Object.assign({}, this.cache[key]);
+                    cacheEntry.key = key;
+                    return this.cache[key]
+                }.bind(this))
+                .filter(function(cacheEntry) {
+                    return cacheEntry.isValid();
+                }.bind(this))
+                .sort(function(cacheEntryA, cacheEntryB) {
+                    return cacheEntryB.size - cacheEntryA.size
+                })
+                .slice(0, options.keysLimit)
+                .map(function(cacheEntry) {
+                    return {
+                        key: cacheEntry.key,
+                        size: cacheEntry.size
+                    }
+                });
+        }
+        else {
+            keyMetrics = Object.keys(this.cache)
+                .filter(function(key) {
+                    return this.cache[key].isValid();
+                }.bind(this))
+                .sort()
+                .slice(0, options.keysLimit)
+        }
+        this.stats.keys = keyMetrics;
+    }
+
+    return this.stats;
 };
 
 /**
@@ -426,9 +502,9 @@ CrispCache.prototype._getDefaultExpiresTtl = function () {
 };
 
 CrispCache.prototype._emit = function(name, options) {
-	if(this.emitEvents) {
-		this.emit(name, options);
-	}
+    if(this.emitEvents) {
+        this.emit(name, options);
+    }
 };
 
 // Unique id for key-less CrispCache.wrap
@@ -497,7 +573,7 @@ CrispCache.wrap = function(origFn, options) {
 
         cache.get(key, cb);
     }
-	wrapFunc._cache = cache;
+    wrapFunc._cache = cache;
     return wrapFunc;
 };
 
