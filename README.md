@@ -156,11 +156,37 @@ _Note: Underlying cache instance is exposed via Cache.wrap().\_cache_. Be carefu
 ### CrispCache.getUsage()
 Returns some basic usage when using maxSize/LRU capabilities.
 
+```
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `keysLimit` | (integer) | 0  | Limit the returned keys array to this value. None by default (fastest) |
+```
+
 Returns:
+An object of the current cache state. Also returns a sorted keys array. The keys are sorted by size when LRU is enabled, otherwise they are in alphabetical order.
 ```javascript
 {
 	size (integer),
-	maxSize (integer)
+	maxSize (integer),
+	hitRatio (integer),
+	getSetRatio (integer),
+	get: {
+		count (integer),
+		hit (integer),
+		miss (integer),
+		stale (integer)
+	},
+	set: {
+		count (integer)
+	},
+	keys: [
+		{
+			key (integer),
+			size (integer)
+		},
+		...
+	]
 }
 ```
 
