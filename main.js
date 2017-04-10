@@ -278,9 +278,12 @@ CrispCache.prototype.clear = function (callback) {
  * @returns {*}
  */
 CrispCache.prototype.getUsage = function (options) {
-	options = Object.assign({
-		keysLimit: 0
-	}, options || {});
+	if(options === undefined) {
+		options = {};
+	}
+	if(options.keysLimit === undefined) {
+		options.keysLimit = 0;
+	}
 
 	// Update our stats object
 	if (this._lru) {
@@ -295,8 +298,8 @@ CrispCache.prototype.getUsage = function (options) {
 		if (this._lru) {
 			keyMetrics = Object.keys(this.cache)
 				.map(function (key) {
-					if(this.cache[key].isValid()) {
-						var cacheEntry = Object.assign({}, this.cache[key]);
+					var cacheEntry = this.cache[key];
+					if(cacheEntry.isValid()) {
 						cacheEntry.key = key;
 						return cacheEntry;
 					}
