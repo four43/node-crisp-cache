@@ -1,12 +1,11 @@
 import * as assert from 'assert';
-import * as seed from 'random-seed';
 import * as sinon from 'sinon';
 import CrispCache from "../../src/main";
 import {CrispCacheConstructOptions} from "../../src/main";
-import SinonFakeTimers = Sinon.SinonFakeTimers;
-import SinonSpy = Sinon.SinonSpy;
+import SinonFakeTimers = sinon.SinonFakeTimers;
+import SinonSpy = sinon.SinonSpy;
 import FetcherError from "../Mock/FetcherError";
-import {CrispCacheEvents} from "../../src/main";
+import {isNullOrUndefined} from "util";
 
 const data: ({[id: string]: any}) = {
 	hello: "world",
@@ -15,20 +14,14 @@ const data: ({[id: string]: any}) = {
 	hash: {key: "value", nested: [4, 5, 6]}
 };
 
-function fetcher(key: string): Promise<any> {
-	return new Promise((res) => {
-		setTimeout(() => {
-			return res(data[key]);
-		}, 1);
-	});
+async function fetcher(key: string): Promise<any> {
+	await wait(1);
+	return data[key];
 }
 
-function slowFetcher(key: string): Promise<any> {
-	return new Promise((res) => {
-		setTimeout(() => {
-			return res(data[key]);
-		}, 5);
-	});
+async function slowFetcher(key: string): Promise<any> {
+	await wait(100);
+	return data[key];
 }
 
 function fetcherCb(key: string, callback: {(err: Error|null, value: any): void}) {
@@ -95,7 +88,7 @@ describe("CrispCache", () => {
 			// Event Checking
 			eventCheck('hit', 0);
 			eventCheck('miss', 1);
-			eventCheck('fetch', 1);
+			eventCheck('fetch', 0);
 		});
 
 		it("Should not fetch a missing key (callback)", (done) => {
@@ -182,7 +175,7 @@ describe("CrispCache", () => {
 			beforeEach(() => {
 				tries = 0;
 
-				function badFetcher(key: string) {
+				function badFetcher() {
 					return new Promise((res, rej) => {
 						setTimeout(() => {
 							tries++;
@@ -207,7 +200,7 @@ describe("CrispCache", () => {
 			it("Should throw fetcher's error when encountered", async(): Promise<void> => {
 				const value1 = await crispCacheBadFetcher.get('first');
 				assert.equal(value1, 1);
-				await wait(5);
+				await wait(10);
 				try {
 					await crispCacheBadFetcher.get('first');
 				}
@@ -232,6 +225,7 @@ describe("CrispCache", () => {
 					crispCacheBadFetcher.get('first', {forceFetch: true}, (err: Error, value: number) => {
 						try {
 							assert.ok(err instanceof FetcherError);
+							assert.strictEqual(value, undefined);
 						}
 						catch (err) {
 							done(err);
@@ -270,7 +264,7 @@ describe("CrispCache", () => {
 				const slowFetcherSpy = sinon.spy(slowFetcher);
 				crispCacheBasic = new CrispCache<any>({
 					fetcher: slowFetcherSpy,
-					fetchTimeout: 2,
+					fetchTimeout: 10,
 					maxSize: Infinity,
 					defaultTtls: {
 						stale: 3000,
@@ -279,7 +273,7 @@ describe("CrispCache", () => {
 				});
 
 				const req1 = crispCacheBasic.get('hello');
-				await wait(6);
+				await wait(50);
 				const req2 = crispCacheBasic.get('hello');
 				const values = await Promise.all([req1, req2]);
 
@@ -379,7 +373,7 @@ describe("CrispCache", () => {
 				assert.equal(value1, 1);
 				await wait(5);
 				try {
-					const value2 = await crispCacheBadFetcher.get('first');
+					await crispCacheBadFetcher.get('first');
 				}
 				catch (err) {
 					assert.ok(err instanceof FetcherError);
@@ -454,14 +448,16 @@ describe("CrispCache", () => {
 		});
 
 		it("Should use stale cache", async(): Promise<void> => {
-			await crispCacheBasic.set("testExpires", "The Value", {ttls:{expires: 5}});
+			await crispCacheBasic.set("testExpires", "The Value", {ttls:{expires: 100, stale: 50}});
 			const value = await crispCacheBasic.get('testExpires');
-			assert.equal(value, 'fetcher');
-
+			await wait(60);
+			const value2 = await crispCacheBasic.get('testExpires');
+			assert.equal(value, 'The Value');
+			assert.equal(value2, 'The Value');
 			// Event Checking
-			eventCheck('hit', 0);
-			eventCheck('miss', 1);
-			eventCheck('fetch', 1);
+			eventCheck('hit', 2);
+			eventCheck('miss', 0);
+			eventCheck('fetch', 0);
 		});
 
 	})

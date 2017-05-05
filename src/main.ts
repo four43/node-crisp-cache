@@ -39,6 +39,9 @@ export type GeneralErrorFirstCallback = {(error: Error|null, result: any): void}
 export type ErrorFirstBooleanCallback = {(error: Error|null, result: boolean): void};
 export type ErrorFirstValueCallback<T> = {(error: Error|null, result?: T|undefined): void};
 
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+
 type GetOptions = {
 	forceFetch?: boolean,
 	skipFetch?: boolean
@@ -77,19 +80,23 @@ export default class CrispCache<T> extends EventEmitter {
 
 	constructor(opts: CrispCacheConstructOptions<T>) {
 		super();
-		this.options = _.defaultsDeep<CrispCacheConstructOptions<T>,CrispCacheOptions<T>>(opts, {
-			fetchTimeout: 3000,
+
+		this.options = {
+			fetchTimeout: 3 * SECOND,
+			...opts,
 			defaultTtls: {
-				stale: 300000,
-				staleVariance: 50000,
-				expires: 500000,
-				expiresVariance: 0
+				stale: 5 * MINUTE,
+				staleVariance: 50 * SECOND,
+				expires: 10 * MINUTE,
+				expiresVariance: 0,
+				...opts.defaultTtls
 			},
 			checkIntervals: {
-				stale: 100000,
-				expires: 1000000
+				stale: 10 * SECOND,
+				expires: 10 * MINUTE,
+				...opts.checkIntervals
 			}
-		});
+		};
 		if (opts.backend) {
 			this.backend = opts.backend;
 		}
@@ -389,6 +396,9 @@ export default class CrispCache<T> extends EventEmitter {
 				// @todo do more with the fetcherCb error
 				this.resolveLocks(key, undefined, err);
 			}
+		}
+		else {
+			console.log('Couldnt get lock');
 		}
 		return doneFetching.promise;
 	};

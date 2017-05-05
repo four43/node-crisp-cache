@@ -7,7 +7,7 @@ import {Lru} from "../../../../src/lib/Backends/Memory/ExpireStrategies/Lru";
 describe("Backend - Memory", () => {
 
 	let backend: Memory<string>;
-	let clock:Sinon.SinonFakeTimers;
+	let clock:sinon.SinonFakeTimers;
 	beforeEach(() => {
 		backend = new Memory<string>({
 			expireStrategy: new Lru({

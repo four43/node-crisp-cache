@@ -1,6 +1,13 @@
 /**
  * Main data structure used for caching, keeps meta information about a cache entry
  */
+
+export enum STATE {
+	VALID,
+	STALE,
+	EXPIRED
+}
+
 export default class CacheEntry<T> {
 
 	public static STATE = STATE;
@@ -75,10 +82,4 @@ export interface CacheEntryOpts<T> {
 		stale: number,
 		expires: number
 	}
-}
-
-export enum STATE {
-	VALID,
-	STALE,
-	EXPIRED
 }

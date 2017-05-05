@@ -47,7 +47,7 @@ export default class Memory<T> implements IBackend<T> {
 				return Promise.resolve(false);
 			}
 		}
-		this.locks[key] = Date.now() + timeout;
+		this.locks[key] = Date.now() + (timeout||0);
 		return Promise.resolve(true);
 	}
 
