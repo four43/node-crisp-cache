@@ -57,23 +57,8 @@ function CrispCache(options) {
 	this.cache = {};
 	this.locks = {};
 
-	// All potential stats we could keep track of
-	this.stats = {
-		size:        null,
-		maxSize:     null,
-		hitRatio:    0,
-		getSetRatio: 0,
-		get:         {
-			count: 0,
-			hit:   0,
-			miss:  0,
-			stale: 0
-		},
-		set:         {
-			count: 0
-		},
-		keys:        []
-	};
+	// Initialize stats
+	this.resetUsage();
 
 	this.emitEvents = options.emitEvents !== undefined ? options.emitEvents : true;
 	//Bind to user supplied events
@@ -334,6 +319,30 @@ CrispCache.prototype.getUsage = function (options) {
 	}
 
 	return this.stats;
+};
+
+/**
+ * Resets usage stats,
+ * so that calls to `getUsage` will only reflect activity
+ * after `resetUsage` is called.
+ */
+CrispCache.prototype.resetUsage = function() {
+	this.stats = {
+		size:        null,
+		maxSize:     null,
+		hitRatio:    0,
+		getSetRatio: 0,
+		get:         {
+			count: 0,
+			hit:   0,
+			miss:  0,
+			stale: 0
+		},
+		set:         {
+			count: 0
+		},
+		keys:        []
+	};
 };
 
 /**

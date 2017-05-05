@@ -437,6 +437,51 @@ describe("CrispCache", function () {
 					done();
 				});
 		});
+
+		it("Should reset stats, after calling `resetUsage`", function (done) {
+			const cache = new CrispCache({
+				fetcher:           fetcher,
+				defaultStaleTtl:   1e12,
+				defaultExpiresTtl: 1e12
+			});
+			async.waterfall([
+					function (callback) {
+						cache.set("testA", "The Value A", callback);
+					},
+					function (result, callback) {
+						cache.get("testA", callback);
+					},
+					function (result, callback) {
+						// Reset stats, before calling get again
+						cache.resetUsage();
+						cache.get("testA", callback);
+					},
+					function (result, callback) {
+						cache.get("testA", callback);
+					}
+				],
+				function (err, result) {
+					var usage = cache.getUsage();
+					assert.deepEqual(usage, {
+						size: null,
+						maxSize: null,
+						hitRatio: 1,
+						getSetRatio: 1,
+						get: {
+							count: 2,
+							hit: 2,
+							miss: 0,
+							stale: 0
+						},
+						set: {
+							count: 0
+						},
+						keys: []
+					});
+					done();
+				});
+		});
+
 	});
 
 	describe("Get - Advanced", function () {
