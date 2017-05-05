@@ -139,6 +139,10 @@ An object of the current cache state. Also returns a sorted keys array. The keys
 }
 ```
 
+### resetUsage()
+
+Reset all usage stats back to zero. Subsequent calls to `getUsage()` will only reflect activity since the last time `resetUsage()` was called.
+
 ### CrispCache.wrap(originalFn, [options])
 
 Wraps an asynchronous function in a CrispCache cache. This allows you to easily create cached versions of functions, which implement the same interface as the original functions.
