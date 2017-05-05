@@ -105,6 +105,39 @@ Set a value to the cache. Will call `callback` (an error first callback) with a 
 ### del(key, [callback])
 Removes the provided `key` (a string) from the cache, will call `callback` (an error first callback) when the delete is done.
 
+### getUsage([options])
+Returns some basic usage when using maxSize/LRU capabilities.
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `keysLimit` | (integer) | 0  | Limit the returned keys array to this value. None by default (fastest) |
+
+Returns:
+An object of the current cache state. Also returns a sorted keys array. The keys are sorted by size when LRU is enabled, otherwise they are in alphabetical order.
+```javascript
+{
+	size (integer),
+	maxSize (integer),
+	hitRatio (integer),
+	getSetRatio (integer),
+	get: {
+		count (integer),
+		hit (integer),
+		miss (integer),
+		stale (integer)
+	},
+	set: {
+		count (integer)
+	},
+	keys: [
+		{
+			key (integer),
+			size (integer)
+		},
+		...
+	]
+}
+```
 
 ### CrispCache.wrap(originalFn, [options])
 
@@ -153,39 +186,6 @@ cachedReadFile('/path/to/file', 'utf8', function(err, contents) {
 | `events` | (Object) | null | A list of callbacks for events, keyed by the event name. Ex. `{ fetch: function(fetchInfo) { console.log(fetchInfo.key); } }` will log each key that is fetched from the original data source. |
 | ... | | | All options accepted by the `CrispCache` constructor are also accepted by `CrispCache.wrap`. See `new CrispCache()` documentation.
 _Note: Underlying cache instance is exposed via Cache.wrap().\_cache_. Be careful with this as the keys are computed with the provided `createKey` function.
-### CrispCache.getUsage()
-Returns some basic usage when using maxSize/LRU capabilities.
-
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `keysLimit` | (integer) | 0  | Limit the returned keys array to this value. None by default (fastest) |
-
-Returns:
-An object of the current cache state. Also returns a sorted keys array. The keys are sorted by size when LRU is enabled, otherwise they are in alphabetical order.
-```javascript
-{
-	size (integer),
-	maxSize (integer),
-	hitRatio (integer),
-	getSetRatio (integer),
-	get: {
-		count (integer),
-		hit (integer),
-		miss (integer),
-		stale (integer)
-	},
-	set: {
-		count (integer)
-	},
-	keys: [
-		{
-			key (integer),
-			size (integer)
-		},
-		...
-	]
-}
-```
 
 ## Advanced Usage
 
