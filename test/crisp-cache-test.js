@@ -361,6 +361,9 @@ describe("CrispCache", function () {
 					},
 					function (result, callback) {
 						crispCacheBasic.get("testA", callback);
+					},
+					function (result, callback) {
+						crispCacheBasic.get("testA", callback);
 					}
 				],
 				function (err, result) {
@@ -369,10 +372,10 @@ describe("CrispCache", function () {
 						size: null,
 						maxSize: null,
 						hitRatio: 1,
-						getSetRatio: 0.3333333333333333,
+						getSetRatio: 0.5,
 						get: {
-							count: 1,
-							hit: 1,
+							count: 2,
+							hit: 2,
 							miss: 0,
 							stale: 0
 						},
