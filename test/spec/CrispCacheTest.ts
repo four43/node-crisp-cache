@@ -364,15 +364,15 @@ describe("CrispCache", () => {
 					fetcher: badFetcherSpy,
 					maxSize: Infinity,
 					defaultTtls: {
-						stale: 3,
-						expires: 5
+						stale: 10,
+						expires: 30
 					}
 				});
 			});
 			it("should throw fetcher's error when encountered", async () => {
 				const value1 = await crispCacheBadFetcher.get('first');
 				assert.equal(value1, 1);
-				await wait(5);
+				await wait(50);
 				try {
 					await crispCacheBadFetcher.get('first');
 				}
