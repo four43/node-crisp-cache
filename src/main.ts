@@ -6,7 +6,7 @@ import {Lru} from "./lib/Backends/Memory/ExpireStrategies/Lru";
 import Memory from "./lib/Backends/Memory/Memory";
 
 export type CrispCacheConstructOptions<T> = {
-	fetcher: {(key: string, cb: ErrorFirstValueCallback<T>): void}|FetcherProimse<T>,
+	fetcher: { (key: string, cb: ErrorFirstValueCallback<T>): void } | {(...args:any[]):Promise<any>},
 	fetchTimeout?: number,
 	maxSize: number,
 	defaultTtls?: {
@@ -20,7 +20,7 @@ export type CrispCacheConstructOptions<T> = {
 		expires?: number
 	},
 	backend?: IBackend<CacheEntry<T>>,
-	events?: {[id: string]: GeneralErrorFirstCallback}
+	events?: { [id: string]: GeneralErrorFirstCallback }
 };
 export type CrispCacheOptions<T> = {
 	fetchTimeout: number,
@@ -35,9 +35,9 @@ export type CrispCacheOptions<T> = {
 		expires: number
 	}
 };
-export type GeneralErrorFirstCallback = {(error: Error|null, result: any): void};
-export type ErrorFirstBooleanCallback = {(error: Error|null, result: boolean): void};
-export type ErrorFirstValueCallback<T> = {(error: Error|null, result?: T|undefined): void};
+export type GeneralErrorFirstCallback = { (error: Error | null, result: any): void };
+export type ErrorFirstBooleanCallback = { (error: Error | null, result: boolean): void };
+export type ErrorFirstValueCallback<T> = { (error: Error | null, result?: T | undefined): void };
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -47,20 +47,26 @@ type GetOptions = {
 	skipFetch?: boolean
 }
 
-type FetcherProimse<T> = {(...args: any[]): Promise<T>}
-
 type WrapCallOptions<T> = Partial<CrispCacheConstructOptions<T>> & {
-	createKey?: {(...args: any[]): string},
-	parseKey?: {(key: string): any[]}
+	createKey?: { (...args: any[]): string },
+	parseKey?: { (key: string): any[] }
 }
 
 type WrapOptions<T> = Partial<CrispCacheConstructOptions<T>> & {
 	maxSize: number,
-	createKey: {(...args: any[]): string},
-	parseKey: {(key: string): any[]}
+	createKey: { (...args: any[]): string },
+	parseKey: { (key: string): any[] }
 }
 
-export type CrispCacheEvents = 'hit' | 'miss' | 'fetch' | 'fetch_done' | 'stale_check' | 'stale_check_done' | 'expires_check' | 'expires_check_done';
+export type CrispCacheEvents =
+	'hit'
+	| 'miss'
+	| 'fetch'
+	| 'fetch_done'
+	| 'stale_check'
+	| 'stale_check_done'
+	| 'expires_check'
+	| 'expires_check_done';
 
 /**
  * @param {{}} opts
@@ -72,9 +78,9 @@ export type CrispCacheEvents = 'hit' | 'miss' | 'fetch' | 'fetch_done' | 'stale_
 export default class CrispCache<T> extends EventEmitter {
 
 	public options: CrispCacheOptions<T>;
-	public fetcher: {(key: string): Promise<T>};
+	public fetcher: { (key: string): Promise<T> };
 	public backend: IBackend<CacheEntry<T>>;
-	public locks: {[id: string]: Deferred<T>[]} = {};
+	public locks: { [id: string]: Deferred<T>[] } = {};
 
 	public static keyIdCounter: number = 0;
 
@@ -152,7 +158,7 @@ export default class CrispCache<T> extends EventEmitter {
 	}
 
 	// @todo figure out function overloading
-	async get(key: string, options?: GetOptions | ErrorFirstValueCallback<T>, callback?: ErrorFirstValueCallback<T>): Promise<T|undefined> {
+	async get(key: string, options?: GetOptions | ErrorFirstValueCallback<T>, callback?: ErrorFirstValueCallback<T>): Promise<T | undefined> {
 
 		if (isValueCallback<T, GetOptions>(options)) {
 			callback = options;
@@ -164,7 +170,7 @@ export default class CrispCache<T> extends EventEmitter {
 
 		try {
 			const cacheEntry = await this.backend.get(key);
-			let value: T|undefined;
+			let value: T | undefined;
 			if (cacheEntry === undefined || (options && options.forceFetch)) {
 				//Cache miss.
 				this._emit('miss', {key: key});
@@ -219,7 +225,7 @@ export default class CrispCache<T> extends EventEmitter {
 		}
 	}
 
-	async set(key: string, value: T, options: {ttls: {stale?: number, expires?: number}, size?: number} = {
+	async set(key: string, value: T, options: { ttls: { stale?: number, expires?: number }, size?: number } = {
 		ttls: {
 			stale: undefined,
 			expires: undefined
@@ -273,14 +279,30 @@ export default class CrispCache<T> extends EventEmitter {
 		}
 	};
 
-	public wrapPromise(origFn: FetcherProimse<T>, options: WrapCallOptions<T> = {}): FetcherProimse<T> {
+	public static wrapPromise<T>(origFn: T, options: WrapCallOptions<T> = {}): T {
 		const cacheOptions = setDefaultWrapOptions<T>(options);
 
-		cacheOptions.fetcher = origFn;
+		// @todo Fix this type hack
+		const origFetcher = origFn as any as {(...args:any[]):Promise<any>};
+
+		cacheOptions.fetcher = (key:string) => {
+			let args;
+			try {
+				args = cacheOptions.parseKey(key);
+			}
+			catch (err) {
+				throw new Error('Failed to parse cache key: ' + key);
+			}
+
+			if (!Array.isArray(args)) {
+				throw new Error('CrispCache.wrap `parseKey` must return an array of arguments');
+			}
+			return origFetcher.apply(null, args);
+		};
 
 		const cache = new CrispCache(<CrispCacheConstructOptions<T>>options);
 
-		return (...args: any[]): Promise<T> => {
+		return ((...args: any[]) => {
 			let key = cacheOptions.createKey.apply(null, args);
 
 			if (Object.prototype.toString.call(key) !== '[object String]') {
@@ -288,7 +310,7 @@ export default class CrispCache<T> extends EventEmitter {
 			}
 
 			return cache.get(key);
-		}
+		}) as any as T
 	}
 
 	// public wrap(origFn: ErrorFirstValueCallback<T>|FetcherProimse<T>, options: WrapCallOptions<T> = {}) {
@@ -359,7 +381,7 @@ export default class CrispCache<T> extends EventEmitter {
 		await this.backend.clear();
 	}
 
-	async getUsage(): Promise<{size: number, maxSize: number}> {
+	async getUsage(): Promise<{ size: number, maxSize: number }> {
 		return await this.backend.getUsage();
 	}
 
@@ -371,7 +393,7 @@ export default class CrispCache<T> extends EventEmitter {
 	 * @private
 	 */
 	private async fetch(key: string,
-	                    options: {ttls: {stale: number, expires: number}, size?: number} = {
+	                    options: { ttls: { stale: number, expires: number }, size?: number } = {
 		                    ttls: {
 			                    stale: 0,
 			                    expires: 0
@@ -396,9 +418,6 @@ export default class CrispCache<T> extends EventEmitter {
 				// @todo do more with the fetcherCb error
 				this.resolveLocks(key, undefined, err);
 			}
-		}
-		else {
-			console.log('Couldnt get lock');
 		}
 		return doneFetching.promise;
 	};
@@ -429,7 +448,7 @@ export default class CrispCache<T> extends EventEmitter {
 	 * Resolves all the locks for a given key with the supplied value.
 	 * @private
 	 */
-	private async resolveLocks(key: string, value: T|undefined, err?: Error) {
+	private async resolveLocks(key: string, value: T | undefined, err?: Error) {
 		if (this.locks[key]) {
 			//Clear out anyone waiting on this key.
 			if (err) {
@@ -453,7 +472,7 @@ export default class CrispCache<T> extends EventEmitter {
 		this._emit('stale_check');
 
 		const refetchKeys: string[] = [];
-		let cursorResult: NextResult<CacheEntry<T>>|null = await this.backend.next();
+		let cursorResult: NextResult<CacheEntry<T>> | null = await this.backend.next();
 		if (cursorResult) {
 			const cacheEntry = cursorResult.value;
 			if (cacheEntry.isStale()) {
@@ -476,7 +495,7 @@ export default class CrispCache<T> extends EventEmitter {
 		this._emit('expires_check');
 
 		const expiredKeys: string[] = [];
-		let cursorResult: NextResult<CacheEntry<T>>|null = await this.backend.next();
+		let cursorResult: NextResult<CacheEntry<T>> | null = await this.backend.next();
 		if (cursorResult) {
 			const cacheEntry = cursorResult.value;
 			if (cacheEntry.isExpired()) {
@@ -529,7 +548,7 @@ class Deferred<T> {
 /**
  * Bind to user supplied event map, where key is event name
  */
-function bindEventMap(eventMap: {[id: string]: GeneralErrorFirstCallback}, eventEmitter: EventEmitter): void {
+function bindEventMap(eventMap: { [id: string]: GeneralErrorFirstCallback }, eventEmitter: EventEmitter): void {
 	Object.keys(eventMap)
 		.map(function (eventName) {
 			eventEmitter.on(eventName, eventMap[eventName]);
@@ -537,20 +556,16 @@ function bindEventMap(eventMap: {[id: string]: GeneralErrorFirstCallback}, event
 }
 
 function setDefaultWrapOptions<T>(options: WrapCallOptions<T>): WrapOptions<T> {
-	// Use a static key, eg. for cached functions
-	// which receive no arguments
 	if (!options.createKey) {
-		CrispCache.keyIdCounter++;
-		let key = 'CRISP_CACHE_KEY_' + CrispCache.keyIdCounter;
 		// Cache has a single entry, with a single constant key
-		options.createKey = function () {
-			return key;
+		options.createKey = function (...args: any[]) {
+			return args.map(arg => arg.toString()).join('!!CRISPCACHE!!');
 		};
 	}
 	if (!options.parseKey) {
 		// OrigFn receives no arguments (besides cb)
 		options.parseKey = function (key) {
-			return [];
+			return key.split('!!CRISPCACHE!!');
 		};
 	}
 	if (options.maxSize === undefined) {

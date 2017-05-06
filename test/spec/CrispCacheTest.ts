@@ -7,7 +7,7 @@ import SinonSpy = sinon.SinonSpy;
 import FetcherError from "../Mock/FetcherError";
 import {isNullOrUndefined} from "util";
 
-const data: ({[id: string]: any}) = {
+const data: ({ [id: string]: any }) = {
 	hello: "world",
 	foo: "bar",
 	arr: [1, 2, 3],
@@ -24,21 +24,21 @@ async function slowFetcher(key: string): Promise<any> {
 	return data[key];
 }
 
-function fetcherCb(key: string, callback: {(err: Error|null, value: any): void}) {
+function fetcherCb(key: string, callback: { (err: Error | null, value: any): void }) {
 	setTimeout(() => {
 		return callback(null, data[key]);
 	}, 1);
 }
 
-let eventSpies: {[id: string]: SinonSpy};
+let eventSpies: { [id: string]: SinonSpy };
 
 describe("CrispCache", () => {
 	describe("Setup Sanity", () => {
-		it("Should complain if we have no fetcherCb", () => {
+		it("should complain if we have no fetcherCb", () => {
 			assert.throws(
 				// Explicitly force options to be cast, avoid compile time check
 				() => new CrispCache(<CrispCacheConstructOptions<string>>{}),
-				"Should complain that we don't have a fetcherCb!"
+				"should complain that we don't have a fetcherCb!"
 			);
 		});
 	});
@@ -62,7 +62,7 @@ describe("CrispCache", () => {
 			eventSpies = setupEvents(crispCacheBasic);
 		});
 
-		it("Should fetch a key", async(): Promise<void> => {
+		it("should fetch a key", async () => {
 			const value = await crispCacheBasic.get('hello');
 			assert.equal(value, 'world');
 
@@ -72,7 +72,7 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 1);
 		});
 
-		it("Should fetch a key (callback)", (done) => {
+		it("should fetch a key (callback)", (done) => {
 			crispCacheBasic.get('hello', (err: Error, value: any) => {
 				assert.equal(err, null);
 				assert.equal(value, 'world');
@@ -80,7 +80,7 @@ describe("CrispCache", () => {
 			});
 		});
 
-		it("Should not fetch a missing key", async(): Promise<void> => {
+		it("should not fetch a missing key", async () => {
 			const value = await crispCacheBasic.get('hello', {skipFetch: true});
 			assert.equal(value, undefined);
 			assert.equal(fetcherSpy.callCount, 0);
@@ -91,7 +91,7 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 0);
 		});
 
-		it("Should not fetch a missing key (callback)", (done) => {
+		it("should not fetch a missing key (callback)", (done) => {
 			crispCacheBasic.get('hello', {skipFetch: true}, (err: Error, value: any) => {
 				assert.equal(err, null);
 				assert.equal(value, undefined);
@@ -100,7 +100,7 @@ describe("CrispCache", () => {
 			});
 		});
 
-		it("Should fetch a key from cache", async(): Promise<void> => {
+		it("should fetch a key from cache", async () => {
 			const value = await crispCacheBasic.get('hello');
 			assert.equal(value, 'world');
 			const value2 = await crispCacheBasic.get('hello');
@@ -113,7 +113,7 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 1);
 		});
 
-		it("Should fetch a key from cache (callback)", (done) => {
+		it("should fetch a key from cache (callback)", (done) => {
 			crispCacheBasic.get('hello', (err, value) => {
 				assert.equal(err, null);
 				assert.equal(value, 'world');
@@ -125,7 +125,7 @@ describe("CrispCache", () => {
 			});
 		});
 
-		it("Should fetch a stale key", async(): Promise<void> => {
+		it("should fetch a stale key", async () => {
 			const value = await crispCacheBasic.get('hello');
 			assert.equal(value, 'world');
 			await wait(4);
@@ -139,7 +139,7 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 1);
 		});
 
-		it("Should re-fetch an expired key", async(): Promise<void> => {
+		it("should re-fetch an expired key", async () => {
 			const value = await crispCacheBasic.get('hello');
 			assert.equal(value, 'world');
 			await wait(6);
@@ -153,7 +153,7 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 2);
 		});
 
-		it("Should force re-fetch a valid key", async(): Promise<void> => {
+		it("should force re-fetch a valid key", async () => {
 			const value = await crispCacheBasic.get('hello');
 			assert.equal(value, 'world');
 			const value2 = await crispCacheBasic.get('hello', {forceFetch: true});
@@ -197,7 +197,7 @@ describe("CrispCache", () => {
 					}
 				});
 			});
-			it("Should throw fetcher's error when encountered", async(): Promise<void> => {
+			it("should throw fetcher's error when encountered", async () => {
 				const value1 = await crispCacheBadFetcher.get('first');
 				assert.equal(value1, 1);
 				await wait(10);
@@ -212,7 +212,7 @@ describe("CrispCache", () => {
 				throw new Error("Test should have thrown an error");
 			});
 
-			it("Should error in callback when fetcher's error encountered", (done) => {
+			it("should error in callback when fetcher's error encountered", (done) => {
 				crispCacheBadFetcher.get('first', (err: Error, value: number) => {
 					try {
 						assert.ifError(err);
@@ -238,7 +238,7 @@ describe("CrispCache", () => {
 
 		describe("Locking", () => {
 
-			it("Should run fetcher for 2 different keys (sanity check)", async(): Promise<void> => {
+			it("should run fetcher for 2 different keys (sanity check)", async () => {
 				const req1 = crispCacheBasic.get('hello');
 				const req2 = crispCacheBasic.get('foo');
 				const values = await Promise.all([req1, req2]);
@@ -249,7 +249,7 @@ describe("CrispCache", () => {
 				assert.equal(fetcherSpy.callCount, 2);
 			});
 
-			it("Should fetch once for two requests", async(): Promise<void> => {
+			it("should fetch once for two requests", async () => {
 				const req1 = crispCacheBasic.get('hello');
 				const req2 = crispCacheBasic.get('hello');
 				const values = await Promise.all([req1, req2]);
@@ -260,7 +260,7 @@ describe("CrispCache", () => {
 				assert.equal(fetcherSpy.callCount, 1);
 			});
 
-			it("Should try again with slow fetcher", async(): Promise<void> => {
+			it("should try again with slow fetcher", async () => {
 				const slowFetcherSpy = sinon.spy(slowFetcher);
 				crispCacheBasic = new CrispCache<any>({
 					fetcher: slowFetcherSpy,
@@ -273,6 +273,7 @@ describe("CrispCache", () => {
 				});
 
 				const req1 = crispCacheBasic.get('hello');
+				// Wait for fetcher to timeoutS
 				await wait(50);
 				const req2 = crispCacheBasic.get('hello');
 				const values = await Promise.all([req1, req2]);
@@ -306,12 +307,12 @@ describe("CrispCache", () => {
 			})
 		});
 
-		it("Should fetch a key", async(): Promise<void> => {
+		it("should fetch a key", async () => {
 			const value = await crispCacheBasic.get('hello');
 			assert.equal(value, 'world');
 		});
 
-		it("Should fetch a key (callback)", function (done) {
+		it("should fetch a key (callback)", function (done) {
 			crispCacheBasic.get('hello', (err: Error, value: any) => {
 				assert.equal(err, null);
 				assert.equal(value, 'world');
@@ -319,7 +320,7 @@ describe("CrispCache", () => {
 			});
 		});
 
-		it("Should not fetch a missing key", function (done) {
+		it("should not fetch a missing key", function (done) {
 			crispCacheBasic.get('hello', {skipFetch: true}, (err: Error, value: any) => {
 				assert.equal(err, null);
 				assert.equal(value, undefined);
@@ -328,7 +329,7 @@ describe("CrispCache", () => {
 			});
 		});
 
-		it("Should fetch a key from cache", function (done) {
+		it("should fetch a key from cache", function (done) {
 			crispCacheBasic.get('hello', (err, value) => {
 				assert.equal(err, null);
 				assert.equal(value, 'world');
@@ -348,7 +349,7 @@ describe("CrispCache", () => {
 			beforeEach(() => {
 				tries = 0;
 
-				function badFetcher(key: string, cb: ((err: Error|null, value?: number) => void)) {
+				function badFetcher(key: string, cb: ((err: Error | null, value?: number) => void)) {
 					setTimeout(() => {
 						tries++;
 						if (tries > 1) {
@@ -368,7 +369,7 @@ describe("CrispCache", () => {
 					}
 				});
 			});
-			it("Should throw fetcher's error when encountered", async(): Promise<void> => {
+			it("should throw fetcher's error when encountered", async () => {
 				const value1 = await crispCacheBadFetcher.get('first');
 				assert.equal(value1, 1);
 				await wait(5);
@@ -382,7 +383,7 @@ describe("CrispCache", () => {
 				throw new Error("Test should have thrown an error");
 			});
 
-			it("Should error in callback when fetcher's error encountered", (done) => {
+			it("should error in callback when fetcher's error encountered", (done) => {
 				crispCacheBadFetcher.get('first', (err: Error, value: number) => {
 					try {
 						assert.ifError(err);
@@ -425,7 +426,7 @@ describe("CrispCache", () => {
 			eventSpies = setupEvents(crispCacheBasic);
 		});
 
-		it("Should set a key to the cache (use default TTLs)", async(): Promise<void> => {
+		it("should set a key to the cache (use default TTLs)", async () => {
 			await crispCacheBasic.set("testA", "The Value");
 			const value = await crispCacheBasic.get('testA');
 			assert.equal(value, 'The Value');
@@ -436,8 +437,8 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 0);
 		});
 
-		it("Should skip cache with TTL of 0", async(): Promise<void> => {
-			await crispCacheBasic.set("testExpires", "The Value", {ttls:{expires: 0}});
+		it("should skip cache with TTL of 0", async () => {
+			await crispCacheBasic.set("testExpires", "The Value", {ttls: {expires: 0}});
 			const value = await crispCacheBasic.get('testExpires');
 			assert.equal(value, 'fetcher');
 
@@ -447,8 +448,8 @@ describe("CrispCache", () => {
 			eventCheck('fetch', 1);
 		});
 
-		it("Should use stale cache", async(): Promise<void> => {
-			await crispCacheBasic.set("testExpires", "The Value", {ttls:{expires: 100, stale: 50}});
+		it("should use stale cache", async () => {
+			await crispCacheBasic.set("testExpires", "The Value", {ttls: {expires: 100, stale: 50}});
 			const value = await crispCacheBasic.get('testExpires');
 			await wait(60);
 			const value2 = await crispCacheBasic.get('testExpires');
@@ -462,18 +463,147 @@ describe("CrispCache", () => {
 
 	})
 
+	describe("Delete", () => {
 
+		let crispCacheBasic: CrispCache<any>;
+		let fetcherSpy: SinonSpy;
+
+		beforeEach(() => {
+			fetcherSpy = sinon.spy(() => Promise.resolve('fetcher'));
+			crispCacheBasic = new CrispCache<any>({
+				fetcher: fetcherSpy,
+				maxSize: Infinity,
+				defaultTtls: {
+					stale: 1000,
+					expires: 5000
+				}
+			});
+
+			eventSpies = setupEvents(crispCacheBasic);
+		});
+
+		it("should delete an existing key", async () => {
+			await crispCacheBasic.set("testA", "Value A");
+			await crispCacheBasic.set("testB", "Value B");
+			await crispCacheBasic.set("testC", "Value C");
+
+			await crispCacheBasic.delete("testB");
+
+			const valueA = await crispCacheBasic.get('testA');
+			const valueB = await crispCacheBasic.get('testB');
+			const valueC = await crispCacheBasic.get('testC');
+
+			assert.equal(valueA, 'Value A');
+			// Run fetcher to get our value
+			assert.equal(valueB, 'fetcher');
+			assert.equal(valueC, 'Value C');
+
+			// Event Checking
+			eventCheck('hit', 2);
+			eventCheck('miss', 1);
+			eventCheck('fetch', 1);
+		});
+
+		it("should delete a non-existent key", async () => {
+			await crispCacheBasic.set("testA", "Value A");
+
+			await crispCacheBasic.delete("testB");
+
+			const valueA = await crispCacheBasic.get('testA');
+			const valueB = await crispCacheBasic.get('testB');
+
+			assert.equal(valueA, 'Value A');
+			// Run fetcher to get our value
+			assert.equal(valueB, 'fetcher');
+
+			// Event Checking
+			eventCheck('hit', 1);
+			eventCheck('miss', 1);
+			eventCheck('fetch', 1);
+		});
+	});
+
+	describe("Clear", () => {
+
+		let crispCacheBasic: CrispCache<any>;
+		let fetcherSpy: SinonSpy;
+
+		beforeEach(() => {
+			fetcherSpy = sinon.spy(() => Promise.resolve('fetcher'));
+			crispCacheBasic = new CrispCache<any>({
+				fetcher: fetcherSpy,
+				maxSize: Infinity,
+				defaultTtls: {
+					stale: 1000,
+					expires: 5000
+				}
+			});
+
+			eventSpies = setupEvents(crispCacheBasic);
+		});
+
+		it("should clear all existing keys", async () => {
+			await crispCacheBasic.set("testA", "Value A");
+			await crispCacheBasic.set("testB", "Value B");
+			await crispCacheBasic.set("testC", "Value C");
+
+			await crispCacheBasic.clear();
+
+			const valueA = await crispCacheBasic.get('testA');
+			const valueB = await crispCacheBasic.get('testB');
+			const valueC = await crispCacheBasic.get('testC');
+
+			assert.equal(valueA, 'fetcher');
+			// Run fetcher to get our value
+			assert.equal(valueB, 'fetcher');
+			assert.equal(valueC, 'fetcher');
+
+			// Event Checking
+			eventCheck('hit', 0);
+			eventCheck('miss', 3);
+			eventCheck('fetch', 3);
+		});
+
+		it("should clear empty cache", async () => {
+			await crispCacheBasic.clear();
+
+			const valueA = await crispCacheBasic.get('testA');
+
+			assert.equal(valueA, 'fetcher');
+
+			// Event Checking
+			eventCheck('hit', 0);
+			eventCheck('miss', 1);
+			eventCheck('fetch', 1);
+		});
+	});
+
+	describe("wrapPromise", () => {
+
+		let baseFunction: SinonSpy;
+		beforeEach(() => {
+			baseFunction = sinon.spy((key:string, id: number) => Promise.resolve(`Fetched ${key} ${id}`));
+		});
+
+		it("should create cached version of provided method", async () => {
+			const cachedFunc = CrispCache.wrapPromise<{(key:string, id: number):Promise<string>}>(baseFunction);
+
+			const result = await cachedFunc('testA', 1);
+
+			assert.equal(result, 'Fetched testA 1');
+		})
+	})
 });
 
 function wait(time: number): Promise<void> {
 	return new Promise<void>(res => setTimeout(res, time));
 }
 
-function setupEvents(crispCache: CrispCache<any>): {[id: string]: SinonSpy} {
-	const eventSpies: {[id: string]: SinonSpy} = {};
+function setupEvents(crispCache: CrispCache<any>): { [id: string]: SinonSpy } {
+	const eventSpies: { [id: string]: SinonSpy } = {};
 	['hit', 'miss', 'fetch', 'fetch_done', 'stale_check', 'stale_check_done', 'expires_check', 'expires_check_done']
 		.map((key: string) => {
-			eventSpies[key] = sinon.spy(() => console.log(key));
+			eventSpies[key] = sinon.spy(() => { });
 			crispCache.on(key, eventSpies[key]);
 		});
 
