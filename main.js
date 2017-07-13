@@ -183,6 +183,14 @@ CrispCache.prototype.get = function (key, options, callback) {
  * @param {valueCb} [callback]
  */
 CrispCache.prototype.set = function (key, value, options, callback) {
+
+	var done = function() {
+		this._resolveLocks(key, value);
+		if (callback) {
+			callback(null, true);
+		}
+	}.bind(this);
+
 	//Parse Args
 	debug("Set " + key + ": ", value);
 	if (typeof options === 'function' && !callback) {
@@ -206,10 +214,16 @@ CrispCache.prototype.set = function (key, value, options, callback) {
 		if (this._lru) {
 			this._lru.put(key, cacheEntry.size);
 		}
+		done();
 	}
-	this._resolveLocks(key, value);
-	if (callback) {
-		callback(null, true);
+	else if(this.cache[key]) {
+		// Have an entry but want to set the TTL to 0
+		this.del(key, function() {
+			done();
+		});
+	}
+	else {
+		done();
 	}
 };
 
