@@ -1175,6 +1175,16 @@ describe("CrispCache", function () {
 			})
 		});
 
+		it("Should increase LRU size, replace with expiresTtl=0", function (done) {
+			crispCacheBasic.set("testA", "The Value", {size: 3, expiresTtl: 100}, function (err, success) {
+				crispCacheBasic.set("testA", "The Value B", {size: 4, expiresTtl: 0}, function (err, success) {
+					assert.equal(crispCacheBasic._lru.size, 0);
+					assert.equal(Object.keys(crispCacheBasic._lru.hash), 0);
+					done();
+				});
+			})
+		});
+
 		it("Should update LRU", function (done) {
 			async.waterfall([
 					function (callback) {
