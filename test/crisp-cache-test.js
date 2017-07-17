@@ -1235,6 +1235,7 @@ describe("CrispCache", function () {
 					},
 					function (result, callback) {
 						assert.equal(crispCacheBasic._lru.size, 5);
+						assert.equal(Object.keys(crispCacheBasic.cache).length, 1);
 						callback();
 					},
 					function (callback) {
