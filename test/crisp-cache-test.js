@@ -382,6 +382,7 @@ describe("CrispCache", function () {
 						set: {
 							count: 2
 						},
+						count: 2,
 						keys: []
 					});
 					done();
@@ -422,6 +423,7 @@ describe("CrispCache", function () {
 						set: {
 							count: 4
 						},
+						count: 4,
 						keys: [
 							{
 								key: 'testA'
@@ -476,6 +478,7 @@ describe("CrispCache", function () {
 						set: {
 							count: 0
 						},
+						count: 1,
 						keys: []
 					});
 					done();
@@ -1312,6 +1315,7 @@ describe("CrispCache", function () {
 							set: {
 								count: 2
 							},
+							count: 2,
 							keys: []
 						});
 						done();
@@ -1346,6 +1350,7 @@ describe("CrispCache", function () {
 							set: {
 								count: 2
 							},
+							count: 2,
 							keys: [
 								{
 									key: 'testB',
