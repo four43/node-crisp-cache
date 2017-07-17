@@ -292,10 +292,11 @@ CrispCache.prototype.getUsage = function (options) {
 	this.stats.hitRatio = this.stats.get.hit / this.stats.get.count;
 	this.stats.getSetRatio = this.stats.get.count / (this.stats.get.count + this.stats.set.count);
 
+	var validKeys;
 	if (options.keysLimit > 0) {
 		var keyMetrics = [];
 		if (this._lru) {
-			keyMetrics = Object.keys(this.cache)
+			validKeys = Object.keys(this.cache)
 				.map(function (key) {
 					var cacheEntry = this.cache[key];
 					if(cacheEntry.isValid()) {
@@ -306,8 +307,11 @@ CrispCache.prototype.getUsage = function (options) {
 				}.bind(this))
 				.filter(function (cacheEntry) {
 					return Boolean(cacheEntry);
-				}.bind(this))
-				.sort(function (cacheEntryA, cacheEntryB) {
+				}.bind(this));
+
+			this.stats.count = validKeys.length;
+
+			keyMetrics = validKeys.sort(function (cacheEntryA, cacheEntryB) {
 					return cacheEntryB.size - cacheEntryA.size
 				})
 				.slice(0, options.keysLimit)
@@ -319,17 +323,21 @@ CrispCache.prototype.getUsage = function (options) {
 				});
 		}
 		else {
-			keyMetrics = Object.keys(this.cache)
+			validKeys = Object.keys(this.cache)
 				.filter(function (key) {
 					return this.cache[key].isValid();
-				}.bind(this))
-				.sort()
+				}.bind(this));
+			this.stats.count = validKeys.length;
+			keyMetrics = validKeys.sort()
 				.slice(0, options.keysLimit)
 				.map(function(cacheEntryKey) {
 					return { key: cacheEntryKey }
 				})
 		}
 		this.stats.keys = keyMetrics;
+	}
+	else {
+		this.stats.count = Object.keys(this.cache).length;
 	}
 
 	return this.stats;
@@ -355,6 +363,7 @@ CrispCache.prototype.resetUsage = function() {
 		set:         {
 			count: 0
 		},
+		count:    0,
 		keys:        []
 	};
 };

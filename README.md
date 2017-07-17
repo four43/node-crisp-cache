@@ -129,6 +129,7 @@ An object of the current cache state. Also returns a sorted keys array. The keys
 	set: {
 		count (integer)
 	},
+	count (integer), // The total number of keys in the cache (even expired ones)
 	keys: [
 		{
 			key (integer),
@@ -141,7 +142,7 @@ An object of the current cache state. Also returns a sorted keys array. The keys
 
 ### resetUsage()
 
-Reset all usage stats back to zero. Subsequent calls to `getUsage()` will only reflect activity since the last time `resetUsage()` was called.
+Reset usage stats back to zero. Subsequent calls to `getUsage()` will only reflect activity since the last time `resetUsage()` was called. Stats like `size`, `maxSize`, `count`, and `keys` aren't reset since those are derived from options or cached data.
 
 ### CrispCache.wrap(originalFn, [options])
 
