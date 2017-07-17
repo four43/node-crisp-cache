@@ -1,6 +1,6 @@
 {
   "name": "crisp-cache",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A crispy fresh cache that will try and use updated data where it can, but can use a stale entry if need be.",
   "main": "main.js",
   "scripts": {
