@@ -118,8 +118,8 @@ describe("Memory Test", function () {
 				var endDifference = halfMemoryInfo.heapUsed - startingMemoryInfo.heapUsed;
 
 				console.log("Half - Full: " + (halfMemoryInfo.heapUsed - fullMemoryInfo.heapUsed) + " (<0)");
-				console.log("Half - Starting: " + (halfMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (Ideally 0)");
-				console.log("Half - Starting (%): " + ((halfMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) / (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed)) + " (Ideally 0)");
+				console.log("Half - Starting: " + (halfMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) + " (Ideally 50% left)");
+				console.log("Half - Starting (%): " + ((halfMemoryInfo.heapUsed - startingMemoryInfo.heapUsed) / (fullMemoryInfo.heapUsed - startingMemoryInfo.heapUsed)) * 100 + " (Ideally 50%)");
 				assert.ok((endDifference / memoryIncrease) < 0.52, "We used more than ~50% of memory when we cleared half of our entries, was " + (endDifference / memoryIncrease * 100) + "%");
 				done();
 			});

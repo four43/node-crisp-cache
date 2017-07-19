@@ -1207,6 +1207,7 @@ describe("CrispCache", function () {
 				crispCacheBasic.set("testA", "The Value B", {size: 4, expiresTtl: 0}, function (err, success) {
 					assert.equal(crispCacheBasic._lru.size, 0);
 					assert.equal(Object.keys(crispCacheBasic._lru.hash), 0);
+					assert.equal(Object.keys(crispCacheBasic.locks).length, 0);
 					done();
 				});
 			})
