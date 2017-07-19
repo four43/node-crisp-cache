@@ -582,6 +582,7 @@ describe("CrispCache", function () {
 					assert.equal(results[0], 'world');
 					assert.equal(results[1], 'world');
 					assert.equal(fetcherSpy.callCount, 1);
+					assert.equal(Object.keys(crispCacheBasic.locks).length, 0);
 					done();
 				});
 			clock.tick(10);
@@ -796,6 +797,7 @@ describe("CrispCache", function () {
 				assert.equal(crispCacheBasic.cache['testA'], undefined);
 				crispCacheBasic.get('testA', function (err, value) {
 					assert.equal(value, 'fetcher value');
+					assert.equal(Object.keys(crispCacheBasic.locks).length, 0);
 					done();
 				});
 			})
@@ -843,12 +845,12 @@ describe("CrispCache", function () {
 					assert.equal(value, 'fetcher');
 					assert.equal(crispCacheBasic.cache['testA'].staleTtl, 123);
 					assert.equal(crispCacheBasic.cache['testA'].expiresTtl, 456);
+					assert.equal(Object.keys(crispCacheBasic.locks).length, 0);
 					done();
 				});
 			})
 		});
 
-		// PASSES
 		it("Should expire cached value with a TTL of 0", function (done) {
 			var fetcher;
 			var cache = new CrispCache({
@@ -867,12 +869,12 @@ describe("CrispCache", function () {
 				cache.get('foo', function (err, val) {
 					assert.ifError(err);
 					assert.deepEqual(fetcher.callCount, 2, 'Should have hit cache again, because ttl was set to 0');
+					assert.equal(Object.keys(crispCacheBasic.locks).length, 0);
 					done();
 				});
 			});
 		});
 
-		// FAILS
 		it("Should expire cached value with a negative TTL", function (done) {
 			var fetcher;
 			var cache = new CrispCache({
@@ -928,6 +930,28 @@ describe("CrispCache", function () {
 				assert.equal(err, null);
 				assert.equal(value, undefined);
 				assert.equal(fetcherSpy.callCount, 1);
+				done();
+			});
+		});
+
+		it("Should run delete callback", function (done) {
+			async.waterfall([
+				function (callback) {
+					return crispCacheBasic.get('hello', callback);
+				},
+				function (value, callback) {
+					assert.equal(value, 'world');
+					return crispCacheBasic.del('hello', callback);
+				},
+				function (value, callback) {
+					assert.equal(true, value);
+					crispCacheBasic.get('hello', {skipFetch: true}, callback);
+				}
+			], function (err, value) {
+				assert.equal(err, null);
+				assert.equal(value, undefined);
+				assert.equal(fetcherSpy.callCount, 1);
+				assert.equal(Object.keys(crispCacheBasic.locks).length, 0);
 				done();
 			});
 		});
