@@ -221,8 +221,8 @@ describe("LRU", function () {
 			assert.equal(Object.keys(lru.hash).length, 2);
 
 			assert.deepEqual(lru.tail.newer, lru.hash['c']);
-			assert.deepStrictEqual(lru.tail.older, null);
-			assert.deepStrictEqual(lru.head.newer, null);
+			assert.strictEqual(lru.tail.older, null);
+			assert.strictEqual(lru.head.newer, null);
 			assert.deepEqual(lru.head.older, lru.hash['a']);
 		});
 
@@ -236,8 +236,8 @@ describe("LRU", function () {
 			assert.equal(Object.keys(lru.hash).length, 2);
 
 			assert.deepEqual(lru.tail.newer, lru.hash['b']);
-			assert.deepStrictEqual(lru.tail.older, null);
-			assert.deepStrictEqual(lru.head.newer, null);
+			assert.strictEqual(lru.tail.older, null);
+			assert.strictEqual(lru.head.newer, null);
 			assert.deepEqual(lru.head.older, lru.hash['a']);
 		});
 
@@ -251,8 +251,8 @@ describe("LRU", function () {
 			assert.equal(Object.keys(lru.hash).length, 2);
 
 			assert.deepEqual(lru.tail.newer, lru.hash['c']);
-			assert.deepStrictEqual(lru.tail.older, null);
-			assert.deepStrictEqual(lru.head.newer, null);
+			assert.strictEqual(lru.tail.older, null);
+			assert.strictEqual(lru.head.newer, null);
 			assert.deepEqual(lru.head.older, lru.hash['b']);
 		});
 	});
@@ -269,8 +269,8 @@ describe("LRU", function () {
 			assert.equal(Object.keys(lru.hash).length, 1);
 
 			assert.deepEqual(lru.tail.newer, null);
-			assert.deepStrictEqual(lru.tail.older, null);
-			assert.deepStrictEqual(lru.head.newer, null);
+			assert.strictEqual(lru.tail.older, null);
+			assert.strictEqual(lru.head.newer, null);
 			assert.deepEqual(lru.head.older, null);
 		});
 
@@ -304,8 +304,8 @@ describe("LRU", function () {
 			assert.equal(Object.keys(lru.hash).length, 2);
 
 			assert.deepEqual(lru.tail.newer, lru.hash['c']);
-			assert.deepStrictEqual(lru.tail.older, null);
-			assert.deepStrictEqual(lru.head.newer, null);
+			assert.strictEqual(lru.tail.older, null);
+			assert.strictEqual(lru.head.newer, null);
 			assert.deepEqual(lru.head.older, lru.hash['b']);
 		});
 	});
