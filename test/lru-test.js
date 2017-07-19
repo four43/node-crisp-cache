@@ -173,6 +173,7 @@ describe("LRU", function () {
 				assert.equal(lru.head.key, 'c');
 				assert.equal(lru.tail.key, 'b');
 				assert.equal(lru.size, 10);
+				assert.equal(Object.keys(lru.hash).length, 2);
 			});
 
 			it("Shouldn't remove any", function () {
@@ -183,6 +184,7 @@ describe("LRU", function () {
 				assert.equal(lru.head.key, 'c');
 				assert.equal(lru.tail.key, 'a');
 				assert.equal(lru.size, 6);
+				assert.equal(Object.keys(lru.hash).length, 3);
 			});
 
 			it("Should remove 2 elements", function () {
@@ -193,6 +195,7 @@ describe("LRU", function () {
 				assert.equal(lru.head.key, 'c');
 				assert.equal(lru.tail.key, 'c');
 				assert.equal(lru.size, 10);
+				assert.equal(Object.keys(lru.hash).length, 1);
 			});
 
 			it("Should remove multiple elements", function () {
@@ -215,6 +218,12 @@ describe("LRU", function () {
 			lru.del('b');
 			assert.equal(lru.head.key, 'c');
 			assert.equal(delSpy.callCount, 1);
+			assert.equal(Object.keys(lru.hash).length, 2);
+
+			assert.deepEqual(lru.tail.newer, lru.hash['c']);
+			assert.deepStrictEqual(lru.tail.older, null);
+			assert.deepStrictEqual(lru.head.newer, null);
+			assert.deepEqual(lru.head.older, lru.hash['a']);
 		});
 
 		it("Should remove the head entry", function () {
@@ -224,6 +233,12 @@ describe("LRU", function () {
 			lru.del('c');
 			assert.equal(lru.head.key, 'b');
 			assert.equal(delSpy.callCount, 1);
+			assert.equal(Object.keys(lru.hash).length, 2);
+
+			assert.deepEqual(lru.tail.newer, lru.hash['b']);
+			assert.deepStrictEqual(lru.tail.older, null);
+			assert.deepStrictEqual(lru.head.newer, null);
+			assert.deepEqual(lru.head.older, lru.hash['a']);
 		});
 
 		it("Should remove the tail entry", function () {
@@ -233,6 +248,12 @@ describe("LRU", function () {
 			lru.del('a');
 			assert.equal(lru.tail.key, 'b');
 			assert.equal(delSpy.callCount, 1);
+			assert.equal(Object.keys(lru.hash).length, 2);
+
+			assert.deepEqual(lru.tail.newer, lru.hash['c']);
+			assert.deepStrictEqual(lru.tail.older, null);
+			assert.deepStrictEqual(lru.head.newer, null);
+			assert.deepEqual(lru.head.older, lru.hash['b']);
 		});
 	});
 
@@ -245,6 +266,20 @@ describe("LRU", function () {
 			assert.equal(lru.head.key, 'b');
 			assert.equal(lru.tail.key, 'b');
 			assert.equal(lru.size, 2);
+			assert.equal(Object.keys(lru.hash).length, 1);
+
+			assert.deepEqual(lru.tail.newer, null);
+			assert.deepStrictEqual(lru.tail.older, null);
+			assert.deepStrictEqual(lru.head.newer, null);
+			assert.deepEqual(lru.head.older, null);
+		});
+
+		it("Should shift nothing", function () {
+			lru.shift();
+			assert.equal(lru.head, null);
+			assert.equal(lru.tail, null);
+			assert.equal(lru.size, 0);
+			assert.equal(Object.keys(lru.hash).length, 0);
 		});
 
 		it("Should remove the only entry", function () {
@@ -254,6 +289,7 @@ describe("LRU", function () {
 			assert.equal(lru.head, null);
 			assert.equal(lru.tail, null);
 			assert.equal(lru.size, 0);
+			assert.equal(Object.keys(lru.hash).length, 0);
 		});
 
 		it("Should remove the only entry", function () {
@@ -265,6 +301,12 @@ describe("LRU", function () {
 			assert.equal(lru.head.key, 'c');
 			assert.equal(lru.tail.key, 'b');
 			assert.equal(lru.size, 5);
+			assert.equal(Object.keys(lru.hash).length, 2);
+
+			assert.deepEqual(lru.tail.newer, lru.hash['c']);
+			assert.deepStrictEqual(lru.tail.older, null);
+			assert.deepStrictEqual(lru.head.newer, null);
+			assert.deepEqual(lru.head.older, lru.hash['b']);
 		});
 	});
 
