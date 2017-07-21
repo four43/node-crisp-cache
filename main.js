@@ -76,6 +76,7 @@ CrispCache.EVENT_STALE_CHECK = 'staleCheck';
 CrispCache.EVENT_STALE_CHECK_DONE = 'staleCheckDone';
 CrispCache.EVENT_EVICT_CHECK = 'evictCheck';
 CrispCache.EVENT_EVICT_CHECK_DONE = 'evictCheckDone';
+CrispCache.EVENT_DELETE = 'delete';
 
 /**
  *
@@ -237,6 +238,8 @@ CrispCache.prototype.set = function (key, value, options, callback) {
  * @returns {*}
  */
 CrispCache.prototype.del = function (key, options, callback) {
+	var entry = this.cache[key];
+
 	if (typeof options === 'function' && !callback) {
 		callback = options;
 		options = {};
@@ -250,6 +253,11 @@ CrispCache.prototype.del = function (key, options, callback) {
 	}
 	delete this.cache[key];
 	this._resolveLocks(key, undefined);
+
+	if (entry) {
+		this._emit(CrispCache.EVENT_DELETE, { key: key, entry: entry });
+	}
+
 	if (callback) {
 		return callback(null, true);
 	}

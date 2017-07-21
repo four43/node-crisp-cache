@@ -211,6 +211,11 @@ When fetch (the function provided to keep the cache up to date, configured at cr
 | `fetch` | Right before `fetch()` is called | `{ key }` `key` being the requested key |
 | `fetchDone` | Once fetch returns with a value | `{ key, value, options }` `key` being the requested key, `value` the value returned from fetch(), and `options` are the caching options returned. |
 
+#### del
+| Event Name | Fired When | Arguments |
+| ---------- | ---- | --------- |
+| `delete` | An entry is deleted from the cache | `{ key, entry }` `key` being the requested key, entry is the found cache entry (`entry.value` may be helpful) |
+
 #### staleCheck
 When the stale check is called (on the configured interval) the following events will be emitted:
 

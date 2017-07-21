@@ -1177,6 +1177,10 @@ describe("CrispCache", function () {
 			});
 		});
 
+		afterEach(function() {
+			if (clock) { clock.restore(); }
+		});
+
 		it("Should increase LRU size", function (done) {
 			crispCacheBasic.set("testA", "The Value", {size: 3}, function (err, success) {
 				assert.equal(crispCacheBasic._lru.size, 3);
@@ -1481,6 +1485,70 @@ describe("CrispCache", function () {
 			assert.equal(hitCb.lastCall.returnValue, 'Hit key: a');
 			assert.equal(missCb.callCount, 1, 'Should only call the miss cb once, but should call it');
 			assert.equal(missCb.lastCall.returnValue, 'Miss key: a');
+		});
+
+
+		it('should fire a "delete" event, when an item is deleted', function(done) {
+			var onDelete = sinon.spy();
+			var cache = new CrispCache({
+				fetcher: function(key, cb) {
+					cb(null, key + '_value');
+				},
+				events: {
+					delete: onDelete
+				},
+				defaultExpiresTtl: 1000 * 30
+			});
+
+			async.series([
+				function(cb) {
+					cache.get('foo', cb)
+				},
+				function(cb) {
+					cache.del('foo', cb);
+				},
+				function(cb) {
+					assert(onDelete.called, 'should have called onDelete');
+					var evt = onDelete.args[0][0];
+					assert.strictEqual(evt.key, 'foo');
+					assert.strictEqual(evt.entry.value, 'foo_value');
+					cb();
+				}
+			], done)
+		});
+
+		it('should fire a "delete" event, when an item is evicted', function(done) {
+			var onDelete = sinon.spy();
+			var cache = new CrispCache({
+				fetcher: function(key, cb) {
+					cb(null, key + '_value');
+				},
+				events: {
+					delete: onDelete
+				},
+				defaultExpiresTtl: 10
+			});
+
+			async.series([
+				function(cb) {
+					cache.get('foo', cb)
+				},
+				function(cb) {
+					// Allow cache to expires
+					setTimeout(cb, 11);
+				},
+				function(cb) {
+					// Grab the entry again (causing it to delete the old one)
+					cache.get('foo', cb)
+				},
+				function(cb) {
+					assert(onDelete.called, 'should have called onDelete');
+					var evt = onDelete.args[0][0];
+					assert.strictEqual(evt.key, 'foo');
+					assert.strictEqual(evt.entry.value, 'foo_value');
+					cb();
+				}
+			], done)
 		});
 	});
 
